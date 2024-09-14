@@ -1,3 +1,4 @@
+import os
 import string
 
 import numpy as np
@@ -33,11 +34,10 @@ def get_data(input_file):
     file_names = 'names.txt'
     names = update_file_names(names, file_names)
 
-    input_file = 'data/input.xlsx'
     download_stocks_to_excel(names, input_file)  # вот это очень долго работает, так что коммент этого делай
     # in xlsx f5,choose all blank and delete columns = 1902 stocks instead of 4817
     ### собрали все данные и ок ###
-
+    delete_null_columns(input_file)
     save_names_to_file(pd.read_excel(input_file).head(), file_names)
 
 
@@ -66,7 +66,6 @@ def download_stocks_to_excel(names, xlsx_file):
         data[name] = yf.download(name, '2016-01-01', '2016-12-31')['Adj Close']
 
     data.to_excel(xlsx_file, index=False)
-    return data.head()
 
 
 def profitability(file_in, file_out):
@@ -76,9 +75,17 @@ def profitability(file_in, file_out):
     data.to_excel(file_out, index=False)
 
 
+def delete_null_columns(file):
+    df = pd.read_excel(file)
+    df_cleaned = df.dropna(axis=1, how='all')
+    df_cleaned.to_excel(file, index=False)
+
+
 if __name__ == '__main__':
     input_file = 'data/input.xlsx'
     pr_file = 'data/profitability.xlsx'
 
-    get_data(input_file)
+    if os.stat(input_file).st_size == 0:
+        get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
+
     profitability(input_file, pr_file)
