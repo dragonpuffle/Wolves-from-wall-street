@@ -77,7 +77,7 @@ def profitability(file_in, file_out):
 
 def delete_null_columns(file):
     df = pd.read_excel(file)
-    df_cleaned = df.dropna(axis=1, how='all')
+    df_cleaned = df.dropna(axis=1, how='any')
     df_cleaned.to_excel(file, index=False)
 
 
