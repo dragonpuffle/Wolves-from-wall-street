@@ -1,11 +1,11 @@
-import requests
-import pandas as pd
-import numpy as np
-from bs4 import BeautifulSoup
-import html5lib
-import yfinance as yf
-import openpyxl
 import string
+
+import pandas as pd
+import requests
+import yfinance as yf
+from bs4 import BeautifulSoup
+from math import log
+import numpy as np
 
 
 def get_names_from_url(URL):
@@ -28,7 +28,8 @@ def get_names_from_url(URL):
 
 
 def save_names_to_file(names, file):
-    file.close()
+    with open(file, 'w') as f:
+        pass
 
     with open(file, 'w') as fp:
         fp.write(' '.join(names))
@@ -46,16 +47,27 @@ def download_stocks_to_excel(names, xlsx_file):
         data[name] = yf.download(name, '2016-01-01', '2016-12-31')['Adj Close']
 
     data.to_excel(xlsx_file, index=False)
+    return data.head()
+
+
+def profitability(file_in, file_out):
+    data = pd.read_excel(file_in)
+    for i in range(len(data.columns)):
+        data.iloc[:, i] = np.log1p(data.iloc[:, i].pct_change())
+    data.to_excel(file_out, index=False)
 
 
 if __name__ == '__main__':
-    URL = 'https://www.eoddata.com/stocklist/NASDAQ/'
-    names = get_names_from_url(URL)
-
+    # URL = 'https://www.eoddata.com/stocklist/NASDAQ/'
+    # names = get_names_from_url(URL)
+    #
     file = 'names.txt'
-    save_names_to_file(names, file)
+    # save_names_to_file(names, file)
     names = get_names_from_file(file)
 
-    xlsx_file = 'input.xlsx'
-    download_stocks_to_excel(names, xlsx_file)
+    shares_file = 'input.xlsx'
+    # download_stocks_to_excel(names, xlsx_file)
+
+    pr_file = 'profitability.xlsx'
+    profitability(shares_file, pr_file)
     # in xlsx f5,choose all blank and delete columns = 1902 stocks instead of 4817
