@@ -1,10 +1,10 @@
 import string
 
+import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
-import numpy as np
 
 
 def get_names_from_url(URL):
@@ -26,6 +26,21 @@ def get_names_from_url(URL):
     return names
 
 
+def get_data(input_file):
+    URL = 'https://www.eoddata.com/stocklist/NASDAQ/'
+    names = get_names_from_url(URL)
+
+    file_names = 'names.txt'
+    names = update_file_names(names, file_names)
+
+    input_file = 'data/input.xlsx'
+    download_stocks_to_excel(names, input_file)  # вот это очень долго работает, так что коммент этого делай
+    # in xlsx f5,choose all blank and delete columns = 1902 stocks instead of 4817
+    ### собрали все данные и ок ###
+
+    save_names_to_file(pd.read_excel(input_file).head(), file_names)
+
+
 def save_names_to_file(names, file):
     with open(file, 'w'):
         pass
@@ -38,6 +53,11 @@ def get_names_from_file(file):
     with open(file) as fp:
         names = fp.read().split(' ')
     return names
+
+
+def update_file_names(in_file, out_file):
+    save_names_to_file(in_file, out_file)
+    return get_names_from_file(out_file)
 
 
 def download_stocks_to_excel(names, xlsx_file):
@@ -57,19 +77,8 @@ def profitability(file_in, file_out):
 
 
 if __name__ == '__main__':
-    URL = 'https://www.eoddata.com/stocklist/NASDAQ/'
-    names = get_names_from_url(URL)
+    input_file = 'data/input.xlsx'
+    pr_file = 'data/profitability.xlsx'
 
-    file = 'names.txt'
-    save_names_to_file(names, file)
-    names = get_names_from_file(file)
-
-    input_file = 'input.xlsx'
-    download_stocks_to_excel(names, input_file)
-
-    names = pd.read_excel(input_file).head()
-    save_names_to_file(names, file)
-
-    pr_file = 'profitability.xlsx'
+    get_data(input_file)
     profitability(input_file, pr_file)
-    # in xlsx f5,choose all blank and delete columns = 1902 stocks instead of 4817
