@@ -4,7 +4,6 @@ import pandas as pd
 import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
-from math import log
 import numpy as np
 
 
@@ -28,7 +27,7 @@ def get_names_from_url(URL):
 
 
 def save_names_to_file(names, file):
-    with open(file, 'w') as f:
+    with open(file, 'w'):
         pass
 
     with open(file, 'w') as fp:
@@ -58,16 +57,19 @@ def profitability(file_in, file_out):
 
 
 if __name__ == '__main__':
-    # URL = 'https://www.eoddata.com/stocklist/NASDAQ/'
-    # names = get_names_from_url(URL)
-    #
+    URL = 'https://www.eoddata.com/stocklist/NASDAQ/'
+    names = get_names_from_url(URL)
+
     file = 'names.txt'
-    # save_names_to_file(names, file)
+    save_names_to_file(names, file)
     names = get_names_from_file(file)
 
-    shares_file = 'input.xlsx'
-    # download_stocks_to_excel(names, xlsx_file)
+    input_file = 'input.xlsx'
+    download_stocks_to_excel(names, input_file)
+
+    names = pd.read_excel(input_file).head()
+    save_names_to_file(names, file)
 
     pr_file = 'profitability.xlsx'
-    profitability(shares_file, pr_file)
+    profitability(input_file, pr_file)
     # in xlsx f5,choose all blank and delete columns = 1902 stocks instead of 4817
