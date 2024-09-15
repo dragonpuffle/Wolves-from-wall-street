@@ -81,11 +81,35 @@ def delete_null_columns(file):
     df_cleaned.to_excel(file, index=False)
 
 
+def calculate_mean_var(file_in, file_out):
+    df = pd.read_excel(file_in)
+    result = []
+
+    for column in df.columns[1:]:
+        stock_name = df[column].name
+        mean = np.mean(df[column])  # Математическое ожидание
+        variance = np.var(df[column])  # Дисперсия
+
+        result.append({
+            'Название акции': stock_name,
+            'Мат ожидание': mean,
+            'Дисперсия': variance})
+
+    result_df = pd.DataFrame(result)
+
+    result_df.to_excel(file_out, index=False)
+
+
 if __name__ == '__main__':
     input_file = 'data/input.xlsx'
     pr_file = 'data/profitability.xlsx'
+    mv_file = 'data/stock_results.xlsx'
 
     if os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
 
-    profitability(input_file, pr_file)
+    if os.stat(pr_file).st_size == 0:
+        profitability(input_file, pr_file)
+
+    if os.stat(mv_file).st_size == 0:
+        calculate_mean_var(pr_file, mv_file)
