@@ -105,11 +105,13 @@ if __name__ == '__main__':
     pr_file = 'data/profitability.xlsx'
     mv_file = 'data/stock_results.xlsx'
 
-    if os.stat(input_file).st_size == 0:
+    if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
 
-    if os.stat(pr_file).st_size == 0:
+    if not os.path.exists(pr_file) or os.stat(pr_file).st_size == 0:
         profitability(input_file, pr_file)
 
-    if os.stat(mv_file).st_size == 0:
+    if not os.path.exists(mv_file) or os.stat(mv_file).st_size == 0:
         calculate_mean_var(pr_file, mv_file)
+
+    print(len(get_names_from_file('names.txt')))
