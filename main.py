@@ -124,6 +124,18 @@ def calculate_historical_var(xlsx_file_in,txt_file_in,xlsx_file_out):
     vars_pd=vars_pd.sort_values('Var',ascending=False).reset_index(drop = True)#самое лучшее по var на 1 месте(если отриц, то теряем, если полож, то получим(почти невозможно))
     vars_pd.to_excel(xlsx_file_out,index=False)
 
+def calculate_cvar(xlsx_file_in,txt_file_in,xlsx_file_out):
+    data=pd.read_excel(xlsx_file_in)
+    pareto=get_names_from_file(txt_file_in)
+    cvars = []
+    for stock in pareto:
+        profit=data[stock]
+        profit=profit.sort_values().reset_index(drop = True)
+        cvars.append({'Stocks':stock,'Cvar':profit.iloc[0:12].mean()})
+
+    cvars_pd=pd.DataFrame(cvars)
+    cvars_pd=cvars_pd.sort_values('Cvar',ascending=False).reset_index(drop = True)#лучшее по cvar на 1 месте, если отриц, то теряем, если положит, то получим (почти невозможно)
+    cvars_pd.to_excel(xlsx_file_out,index=False)
 
 
 if __name__ == '__main__':
@@ -132,7 +144,7 @@ if __name__ == '__main__':
     mv_file = 'data/stock_results.xlsx'
     pareto_file='data/pareto_stocks.txt'
     vars_file='data/vars.xlsx'
-
+    cvars_file='data/cvars.xlsx'
 
     if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
@@ -148,5 +160,8 @@ if __name__ == '__main__':
 
     if not os.path.exists(vars_file) or os.stat(vars_file).st_size == 0:
         calculate_historical_var(pr_file,pareto_file,vars_file)
+
+    if not os.path.exists(cvars_file) or os.stat(cvars_file).st_size == 0:
+        calculate_historical_var(pr_file,pareto_file,cvars_file)
 
     print(len(get_names_from_file('names.txt')))
