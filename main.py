@@ -1,11 +1,13 @@
 import os
 import string
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
+import seaborn as sns
 
 
 def get_names_from_url(URL):
@@ -16,7 +18,6 @@ def get_names_from_url(URL):
         response = requests.get(new_URL)
         print('response status = ', response.status_code)
         soup = BeautifulSoup(response.content, "html5lib")
-        # print(page)
         items = soup.findAll('tr', 're')
         for item in items:
             names.append(item.td.text)
@@ -100,10 +101,32 @@ def calculate_mean_var(file_in, file_out):
     result_df.to_excel(file_out, index=False)
 
 
+def create_schedule(file):
+    df = pd.read_excel(file)
+    sns.relplot(
+        data=df,
+        y='Мат ожидание',
+        x='Дисперсия',
+        # color = '#40f4ef',
+    )
+    plt.show()
+
+
+def view_price(file):
+    df = pd.read_excel(file, usecols=['GMGI'])
+    sns.relplot(
+        data=df,
+        kind='line'
+        # color = '#40f4ef',
+    )
+    plt.show()
+
+
 if __name__ == '__main__':
     input_file = 'data/input.xlsx'
     pr_file = 'data/profitability.xlsx'
     mv_file = 'data/stock_results.xlsx'
+    mv_file2 = 'data/stock_results2.xlsx'
 
     if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
@@ -114,4 +137,5 @@ if __name__ == '__main__':
     if not os.path.exists(mv_file) or os.stat(mv_file).st_size == 0:
         calculate_mean_var(pr_file, mv_file)
 
-    print(len(get_names_from_file('names.txt')))
+    create_schedule(mv_file)
+    # view_price(input_file)
