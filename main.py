@@ -118,7 +118,7 @@ def calculate_historical_var(xlsx_file_in,txt_file_in,xlsx_file_out):
     for stock in pareto:
         profit=data[stock]
         profit=profit.sort_values().reset_index(drop = True)
-        vars.append({'Stocks':stock,'Var':profit[12]})
+        vars.append({'Stocks':stock,'Var':profit[12]})#95% от года= 12 дней
 
     vars_pd=pd.DataFrame(vars)
     vars_pd=vars_pd.sort_values('Var',ascending=False).reset_index(drop = True)#самое лучшее по var на 1 месте(если отриц, то теряем, если полож, то получим(почти невозможно))
