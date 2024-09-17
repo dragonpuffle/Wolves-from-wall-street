@@ -100,6 +100,18 @@ def calculate_mean_var(file_in, file_out):
 
     result_df.to_excel(file_out, index=False)
 
+def find_pareto(xlsx_file_in,txt_file_out):
+    data = pd.read_excel(xlsx_file_in)
+    data=data.sort_values(by=['Мат ожидание','Дисперсия'],ascending=False).reset_index(drop = True)
+    pareto_stocks=[]
+    previous_var=100
+    for index, stock in data.iterrows():
+        if stock['Дисперсия']<=previous_var:
+            pareto_stocks.append(stock['Название акции'])
+            previous_var=stock['Дисперсия']
+
+    save_names_to_file(pareto_stocks, txt_file_out)
+
 
 def create_schedule(file):
     df = pd.read_excel(file)
@@ -110,6 +122,19 @@ def create_schedule(file):
         # color = '#40f4ef',
     )
     plt.show()
+
+def calculate_historical_var(xlsx_file_in,txt_file_in,xlsx_file_out):
+    data=pd.read_excel(xlsx_file_in)
+    pareto=get_names_from_file(txt_file_in)
+    vars = []
+    for stock in pareto:
+        profit=data[stock]
+        profit=profit.sort_values().reset_index(drop = True)
+        vars.append({'Stocks':stock,'Var':profit.iloc[12]})#95% от года= 12 дней
+
+    vars_pd=pd.DataFrame(vars)
+    vars_pd=vars_pd.sort_values('Var',ascending=False).reset_index(drop = True)#самое лучшее по var на 1 месте(если отриц, то теряем, если полож, то получим(почти невозможно))
+    vars_pd.to_excel(xlsx_file_out,index=False)
 
 
 def view_price(file):
@@ -126,7 +151,9 @@ if __name__ == '__main__':
     input_file = 'data/input.xlsx'
     pr_file = 'data/profitability.xlsx'
     mv_file = 'data/stock_results.xlsx'
-    mv_file2 = 'data/stock_results2.xlsx'
+    pareto_file='data/pareto_stocks.txt'
+    vars_file='data/vars.xlsx'
+
 
     if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
@@ -139,3 +166,9 @@ if __name__ == '__main__':
 
     create_schedule(mv_file)
     # view_price(input_file)
+
+    if not os.path.exists(pareto_file) or os.stat(pareto_file).st_size == 0:
+        find_pareto(mv_file, pareto_file)
+
+    if not os.path.exists(vars_file) or os.stat(vars_file).st_size == 0:
+        calculate_historical_var(pr_file,pareto_file,vars_file)
