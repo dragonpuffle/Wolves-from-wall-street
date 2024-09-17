@@ -69,17 +69,17 @@ def download_stocks_to_excel(names, xlsx_file):
     data.to_excel(xlsx_file, index=False)
 
 
+def delete_null_columns(file):
+    df = pd.read_excel(file)
+    df_cleaned = df.dropna(axis=1, how='any')
+    df_cleaned.to_excel(file, index=False)
+
+
 def profitability(file_in, file_out):
     data = pd.read_excel(file_in)
     for i in range(len(data.columns)):
         data.iloc[:, i] = np.log1p(data.iloc[:, i].pct_change())
     data.to_excel(file_out, index=False)
-
-
-def delete_null_columns(file):
-    df = pd.read_excel(file)
-    df_cleaned = df.dropna(axis=1, how='any')
-    df_cleaned.to_excel(file, index=False)
 
 
 def calculate_mean_var(file_in, file_out):
@@ -100,43 +100,49 @@ def calculate_mean_var(file_in, file_out):
 
     result_df.to_excel(file_out, index=False)
 
-def find_pareto(xlsx_file_in,txt_file_out):
+
+def find_pareto(xlsx_file_in, txt_file_out):
     data = pd.read_excel(xlsx_file_in)
-    data=data.sort_values(by=['Мат ожидание','Дисперсия'],ascending=False).reset_index(drop = True)
-    pareto_stocks=[]
-    previous_var=100
+    data = data.sort_values(by=['Мат ожидание', 'Дисперсия'], ascending=False).reset_index(drop=True)
+    pareto_stocks = []
+    previous_var = 100
     for index, stock in data.iterrows():
-        if stock['Дисперсия']<=previous_var:
+        if stock['Дисперсия'] <= previous_var:
             pareto_stocks.append(stock['Название акции'])
-            previous_var=stock['Дисперсия']
+            previous_var = stock['Дисперсия']
 
-    save_names_to_file(pareto_stocks,txt_file_out)
+    save_names_to_file(pareto_stocks, txt_file_out)
 
-def calculate_historical_var(xlsx_file_in,txt_file_in,xlsx_file_out):
-    data=pd.read_excel(xlsx_file_in)
-    pareto=get_names_from_file(txt_file_in)
+
+def calculate_historical_var(xlsx_file_in, txt_file_in, xlsx_file_out):
+    data = pd.read_excel(xlsx_file_in)
+    pareto = get_names_from_file(txt_file_in)
     vars = []
     for stock in pareto:
-        profit=data[stock]
-        profit=profit.sort_values().reset_index(drop = True)
-        vars.append({'Stocks':stock,'Var':profit.iloc[12]})#95% от года= 12 дней
+        profit = data[stock]
+        profit = profit.sort_values().reset_index(drop=True)
+        vars.append({'Stocks': stock, 'Var': profit.iloc[12]})  # 95% от года= 12 дней
 
-    vars_pd=pd.DataFrame(vars)
-    vars_pd=vars_pd.sort_values('Var',ascending=False).reset_index(drop = True)#самое лучшее по var на 1 месте(если отриц, то теряем, если полож, то получим(почти невозможно))
-    vars_pd.to_excel(xlsx_file_out,index=False)
+    vars_pd = pd.DataFrame(vars)
+    vars_pd = vars_pd.sort_values('Var', ascending=False).reset_index(
+        drop=True)  # самое лучшее по var на 1 месте(если отриц, то теряем, если полож, то получим(почти невозможно))
+    vars_pd.to_excel(xlsx_file_out, index=False)
 
-def calculate_cvar(xlsx_file_in,txt_file_in,xlsx_file_out):
-    data=pd.read_excel(xlsx_file_in)
-    pareto=get_names_from_file(txt_file_in)
+
+def calculate_cvar(xlsx_file_in, txt_file_in, xlsx_file_out):
+    data = pd.read_excel(xlsx_file_in)
+    pareto = get_names_from_file(txt_file_in)
     cvars = []
     for stock in pareto:
-        profit=data[stock]
-        profit=profit.sort_values().reset_index(drop = True)
-        cvars.append({'Stocks':stock,'Cvar':profit.iloc[0:12].mean()})
+        profit = data[stock]
+        profit = profit.sort_values().reset_index(drop=True)
+        cvars.append({'Stocks': stock, 'Cvar': profit.iloc[0:12].mean()})
 
-    cvars_pd=pd.DataFrame(cvars)
-    cvars_pd=cvars_pd.sort_values('Cvar',ascending=False).reset_index(drop = True)#лучшее по cvar на 1 месте, если отриц, то теряем, если положит, то получим (почти невозможно)
-    cvars_pd.to_excel(xlsx_file_out,index=False)
+    cvars_pd = pd.DataFrame(cvars)
+    cvars_pd = cvars_pd.sort_values('Cvar', ascending=False).reset_index(
+        drop=True)  # лучшее по cvar на 1 месте, если отриц, то теряем, если положит, то получим (почти невозможно)
+    cvars_pd.to_excel(xlsx_file_out, index=False)
+
 
 def view_price(file):
     df = pd.read_excel(file, usecols=['GMGI'])
@@ -148,13 +154,24 @@ def view_price(file):
     plt.show()
 
 
+def create_schedule(file):
+    df = pd.read_excel(file)
+    sns.relplot(
+        data=df,
+        y='Мат ожидание',
+        x='Дисперсия',
+        # color = '#40f4ef',
+    )
+    plt.show()
+
+
 if __name__ == '__main__':
     input_file = 'data/input.xlsx'
     pr_file = 'data/profitability.xlsx'
     mv_file = 'data/stock_results.xlsx'
-    pareto_file='data/pareto_stocks.txt'
-    vars_file='data/vars.xlsx'
-    cvars_file='data/cvars.xlsx'
+    pareto_file = 'data/pareto_stocks.txt'
+    vars_file = 'data/vars.xlsx'
+    cvars_file = 'data/cvars.xlsx'
 
     if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
@@ -172,4 +189,7 @@ if __name__ == '__main__':
         find_pareto(mv_file, pareto_file)
 
     if not os.path.exists(vars_file) or os.stat(vars_file).st_size == 0:
-        calculate_historical_var(pr_file,pareto_file,vars_file)
+        calculate_historical_var(pr_file, pareto_file, vars_file)
+
+    if not os.path.exists(cvars_file) or os.stat(cvars_file).st_size == 0:
+        calculate_cvar(pr_file, pareto_file, cvars_file)
