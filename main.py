@@ -5,10 +5,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
+import seaborn as sns
 import yfinance as yf
 from bs4 import BeautifulSoup
-import seaborn as sns
-from statsmodels.tsa.stattools import adfuller
 from statsmodels.stats.diagnostic import acorr_ljungbox
 
 
