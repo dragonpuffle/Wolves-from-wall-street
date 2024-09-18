@@ -9,6 +9,7 @@ import seaborn as sns
 import yfinance as yf
 from bs4 import BeautifulSoup
 from statsmodels.stats.diagnostic import acorr_ljungbox
+from scipy import stats
 
 
 def get_names_from_url(URL):
@@ -228,27 +229,44 @@ def create_schedule(mv_file, pareto_file):
     plt.show()
 
 
+def count_inversions(data):
+    inversions = 0
+    for i in range(len(data) - 1):
+        for j in range(i + 1, len(data)):
+            if data[i] > data[j]:
+                inversions += 1
+    return inversions
+
+
 def interesting_point(points, file):
+    # Чтение данных из Excel файла
     df = pd.read_excel(file)
 
     for point in points:
         time_series = df[point].dropna()  # Убираем пропущенные значения
 
-        # Проверяем, является ли ряд пустым или константным
+        # Проверяем, является ли ряд пустым
         if time_series.empty:
             print(f"Точка {point}: Временной ряд пустой.")
             continue
 
-        # Проверка на белый шум с помощью теста Ljung-Box
-        try:
-            lb_test = acorr_ljungbox(time_series, lags=[10], return_df=True)  # lags можно настроить
-            lb_pvalue = lb_test['lb_pvalue'].values[0]  # Получаем p-value теста Ljung-Box
-            print(f"Точка {point}: Ljung-Box p-value = {lb_pvalue}")
+        # Подсчитываем количество инверсий
+        num_inversions = count_inversions(time_series.values)
+        print(f"Точка {point}: Количество инверсий = {num_inversions}")
 
-            # Проверяем, является ли ряд белым шумом (если p-value > 0.05, то можем считать его белым шумом)
-            print(f"Белый шум: {'Да' if lb_pvalue > 0.05 else 'Нет'}")
+        # Проверяем нормальность распределения временного ряда
+        try:
+            k2, p = stats.normaltest(time_series)
+            print(f"Точка {point}: p-value для нормальности = {p}")
+
+            # Выводим результат проверки нормальности
+            if p < 0.05:
+                print(f"Точка {point}: Данные не следуют нормальному распределению (отклоняем H0)")
+            else:
+                print(f"Точка {point}: Данные следуют нормальному распределению (принимаем H0)")
         except Exception as e:
-            print(f"Ошибка при проверке белого шума для точки {point}: {e}")
+            print(f"Ошибка при проверке нормальности для точки {point}: {e}")
+
         print('---------------------------------------------------')
 
 
