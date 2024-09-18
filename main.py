@@ -8,6 +8,8 @@ import requests
 import yfinance as yf
 from bs4 import BeautifulSoup
 import seaborn as sns
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.stats.diagnostic import acorr_ljungbox
 
 
 def get_names_from_url(URL):
@@ -109,9 +111,9 @@ def find_pareto(xlsx_file_in, xlx_file_out):
     for index, stock in data.iterrows():
         if stock['Дисперсия'] <= previous_var and stock['Мат ожидание'] > 0:
             pareto_stocks.append({
-            'Название акции': stock['Название акции'],
-            'Мат ожидание': stock['Мат ожидание'],
-            'Дисперсия': stock['Дисперсия']})
+                'Название акции': stock['Название акции'],
+                'Мат ожидание': stock['Мат ожидание'],
+                'Дисперсия': stock['Дисперсия']})
             previous_var = stock['Дисперсия']
 
     # save_names_to_file(pareto_stocks, txt_file_out)
@@ -227,6 +229,29 @@ def create_schedule(mv_file, pareto_file):
     plt.show()
 
 
+def interesting_point(points, file):
+    df = pd.read_excel(file)
+
+    for point in points:
+        time_series = df[point].dropna()  # Убираем пропущенные значения
+
+        # Проверяем, является ли ряд пустым или константным
+        if time_series.empty:
+            print(f"Точка {point}: Временной ряд пустой.")
+            continue
+
+        # Проверка на белый шум с помощью теста Ljung-Box
+        try:
+            lb_test = acorr_ljungbox(time_series, lags=[10], return_df=True)  # lags можно настроить
+            lb_pvalue = lb_test['lb_pvalue'].values[0]  # Получаем p-value теста Ljung-Box
+            print(f"Точка {point}: Ljung-Box p-value = {lb_pvalue}")
+
+            # Проверяем, является ли ряд белым шумом (если p-value > 0.05, то можем считать его белым шумом)
+            print(f"Белый шум: {'Да' if lb_pvalue > 0.05 else 'Нет'}")
+        except Exception as e:
+            print(f"Ошибка при проверке белого шума для точки {point}: {e}")
+        print('---------------------------------------------------')
+
 
 if __name__ == '__main__':
     input_file = 'data/input.xlsx'
@@ -235,6 +260,8 @@ if __name__ == '__main__':
     pareto_file = 'data/pareto_stocks.xlsx'
     vars_file = 'data/vars.xlsx'
     cvars_file = 'data/cvars.xlsx'
+
+    important_dots = ['GMGI', 'SHV', 'CELZ', 'BCDA']
 
     if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
@@ -253,5 +280,7 @@ if __name__ == '__main__':
 
     if not os.path.exists(cvars_file) or os.stat(cvars_file).st_size == 0:
         calculate_cvar(pr_file, pareto_file, cvars_file)
+
+    interesting_point(important_dots, pr_file)
 
     create_schedule(mv_file, pareto_file)
