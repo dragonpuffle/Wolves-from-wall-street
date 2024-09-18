@@ -101,22 +101,26 @@ def calculate_mean_var(file_in, file_out):
     result_df.to_excel(file_out, index=False)
 
 
-def find_pareto(xlsx_file_in, txt_file_out):
+def find_pareto(xlsx_file_in, xlx_file_out):
     data = pd.read_excel(xlsx_file_in)
     data = data.sort_values(by=['Мат ожидание', 'Дисперсия'], ascending=False).reset_index(drop=True)
     pareto_stocks = []
     previous_var = 100
     for index, stock in data.iterrows():
-        if stock['Дисперсия'] <= previous_var:
-            pareto_stocks.append(stock['Название акции'])
+        if stock['Дисперсия'] <= previous_var and stock['Мат ожидание'] > 0:
+            pareto_stocks.append({
+            'Название акции': stock['Название акции'],
+            'Мат ожидание': stock['Мат ожидание'],
+            'Дисперсия': stock['Дисперсия']})
             previous_var = stock['Дисперсия']
 
-    save_names_to_file(pareto_stocks, txt_file_out)
+    # save_names_to_file(pareto_stocks, txt_file_out)
+    pd.DataFrame(pareto_stocks).to_excel(xlx_file_out, index=False)
 
 
-def calculate_historical_var(xlsx_file_in, txt_file_in, xlsx_file_out):
+def calculate_historical_var(xlsx_file_in, pareto_file_in, xlsx_file_out):
     data = pd.read_excel(xlsx_file_in)
-    pareto = get_names_from_file(txt_file_in)
+    pareto = pd.read_excel(pareto_file_in)['Название акции']
     vars = []
     for stock in pareto:
         profit = data[stock]
@@ -129,9 +133,9 @@ def calculate_historical_var(xlsx_file_in, txt_file_in, xlsx_file_out):
     vars_pd.to_excel(xlsx_file_out, index=False)
 
 
-def calculate_cvar(xlsx_file_in, txt_file_in, xlsx_file_out):
+def calculate_cvar(xlsx_file_in, pareto_file_in, xlsx_file_out):
     data = pd.read_excel(xlsx_file_in)
-    pareto = get_names_from_file(txt_file_in)
+    pareto = pd.read_excel(pareto_file_in)['Название акции']
     cvars = []
     for stock in pareto:
         profit = data[stock]
@@ -154,22 +158,81 @@ def view_price(file):
     plt.show()
 
 
-def create_schedule(file):
-    df = pd.read_excel(file)
-    sns.relplot(
-        data=df,
+def create_schedule(mv_file, pareto_file):
+    df_mv = pd.read_excel(mv_file)
+    pareto = pd.read_excel(pareto_file)
+
+    point_x1_var = 2.84306137131399E-08
+    point_y1_var = 0.0000163551398081471
+
+    point_x2_var = 0.0753697111058486
+    point_y2_var = 0.0152849221231872
+
+    point_x3_var = 0
+    point_y3_var = 0
+    # Создаем фигуру и оси
+    fig, ax = plt.subplots()
+
+    # Строим первый график
+    sns.scatterplot(
+        data=df_mv,
         y='Мат ожидание',
         x='Дисперсия',
-        # color = '#40f4ef',
+        ax=ax,
+        color='#40f4ef',
+        label='MV Data',
     )
+
+    # Строим второй график
+    sns.scatterplot(
+        data=pareto,
+        y='Мат ожидание',
+        x='Дисперсия',
+        ax=ax,
+        s=100,
+        marker='x',
+        color='red',
+        label='Pareto Data'
+    )
+
+    ax.scatter(
+        point_x1_var,
+        point_y1_var,
+        marker='o',
+        color='blue',
+        s=80,  # Размер маркера
+        label='SHV (cvar)'
+    )
+
+    ax.scatter(
+        point_x2_var,
+        point_y2_var,
+        marker='o',
+        color='green',
+        s=80,
+        label='CELZ (var)'
+    )
+
+    # ax.scatter(
+    #     point_x3_var,
+    #     point_y3_var,
+    #     marker='o',  # Задаем новый маркер
+    #     color='blue',  # Цвет для новой точки
+    #     s=80,  # Размер маркера
+    #     label='QUBT (cvar)'
+    # )
+
+    # Добавляем легенду
+    ax.legend()
     plt.show()
+
 
 
 if __name__ == '__main__':
     input_file = 'data/input.xlsx'
     pr_file = 'data/profitability.xlsx'
     mv_file = 'data/stock_results.xlsx'
-    pareto_file = 'data/pareto_stocks.txt'
+    pareto_file = 'data/pareto_stocks.xlsx'
     vars_file = 'data/vars.xlsx'
     cvars_file = 'data/cvars.xlsx'
 
@@ -182,9 +245,6 @@ if __name__ == '__main__':
     if not os.path.exists(mv_file) or os.stat(mv_file).st_size == 0:
         calculate_mean_var(pr_file, mv_file)
 
-    create_schedule(mv_file)
-    # view_price(input_file)
-
     if not os.path.exists(pareto_file) or os.stat(pareto_file).st_size == 0:
         find_pareto(mv_file, pareto_file)
 
@@ -193,3 +253,5 @@ if __name__ == '__main__':
 
     if not os.path.exists(cvars_file) or os.stat(cvars_file).st_size == 0:
         calculate_cvar(pr_file, pareto_file, cvars_file)
+
+    create_schedule(mv_file, pareto_file)
