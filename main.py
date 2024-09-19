@@ -10,6 +10,8 @@ import yfinance as yf
 from bs4 import BeautifulSoup
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from scipy import stats
+from scipy.stats import shapiro,normaltest
+
 
 
 def get_names_from_url(URL):
@@ -237,6 +239,13 @@ def count_inversions(data):
                 inversions += 1
     return inversions
 
+def get_left_right_borders(data):
+    n=len(data)-1
+    t=0.062707
+    t_n=t*(n**(3/2))/6
+    left=n*(n-1)/4-t_n
+    right=n*(n-1)/4+t_n
+    return left,right
 
 def interesting_point(points, file):
     # Чтение данных из Excel файла
@@ -270,6 +279,59 @@ def interesting_point(points, file):
         print('---------------------------------------------------')
 
 
+def is_white_noise(points,file):
+    df = pd.read_excel(file)
+    for point in points:
+        data=df[point]
+        inversions=count_inversions(data)
+        left,right=get_left_right_borders(data)
+        if inversions>left and inversions<right:
+            print(point,' является белым шумом')
+        else:
+            print(point, ' не является белым шумом')
+
+def is_normal(points,file):
+    df = pd.read_excel(file)
+    for point in points:
+        sns.kdeplot(data=df[point][1:], common_norm=False)
+        sns.histplot(data=df[point][1:], bins=len(df[point][1:]), stat="density", element="step", fill=False,
+                     cumulative=True, common_norm=False)
+        k2,p=stats.normaltest(df[point][1:])
+        if p<0.05:
+            print(point,' следует нормальному распределению')
+        else:
+            print(point, ' не следует нормальному распределению')
+        print(point,shapiro(df[point][1:]),normaltest(df[point][1:]))
+
+def kdeplt(points,file):
+    df = pd.read_excel(file)
+    for point in points:
+        sns.kdeplot(data=df[point][1:], common_norm=False)
+
+def histplt(points,file):
+    df = pd.read_excel(file)
+    for point in points:
+        sns.histplot(data=df[point][1:], bins=len(df[point][1:]), stat="density", element="step", fill=False,
+                     cumulative=True, common_norm=False)
+
+def count_volatility(points,file):
+    df=pd.read_excel(file)
+    for point in points:
+        volatility=df[point].std()
+        print(f'Стандартное отклонение доходностей: {volatility}')
+
+def find_anomalies(points,file):
+    df = pd.read_excel(file)
+    for point in points:
+        q1=df[point].quantile(0.25)
+        q3 = df[point].quantile(0.75)
+        iqr=q3-q1
+        lower = q1 - 1.5 * iqr
+        upper = q3 + 1.5 * iqr
+        anomalies=(df[point]<lower)|(df[point]>upper)
+        print(f'Обнаруженные аномалии:\n{anomalies}')
+
+
 if __name__ == '__main__':
     input_file = 'data/input.xlsx'
     pr_file = 'data/profitability.xlsx'
@@ -279,6 +341,11 @@ if __name__ == '__main__':
     cvars_file = 'data/cvars.xlsx'
 
     important_dots = ['GMGI', 'SHV', 'CELZ', 'BCDA']
+    #important_dots = ['AAL',	'AAOI',	'AAPL',	'AAXJ',	'ABEO',	'ABTS',	'ABVC',	'ACAD',	'ACHC',	'ACHV',
+    #                  'ACLS',	'ACNT',	'ACWI',	'ADAP',	'ADD',	'ADP',	'ADSK',	'AEHR',	'AEIS',	'AEP',
+    #                 'AFMD',	'AGEN', 'AGIO',	'AGNC',	'AGYS',	'AIA',	'AIFF',	'AIRR',	'AIRT']
+    different_dots=['AAPL','TSLA','AZN','TMUS','LIN']
+
 
     if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
@@ -299,5 +366,12 @@ if __name__ == '__main__':
         calculate_cvar(pr_file, pareto_file, cvars_file)
 
     interesting_point(important_dots, pr_file)
+    is_white_noise(important_dots,pr_file)
+    is_normal(different_dots,pr_file)
+    kdeplt(different_dots,pr_file)
+    #histplt(different_dots,pr_file)
+    count_volatility(different_dots,pr_file)
+    find_anomalies(different_dots,pr_file)
+
 
     create_schedule(mv_file, pareto_file)
