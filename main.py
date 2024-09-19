@@ -8,7 +8,6 @@ import requests
 import seaborn as sns
 import yfinance as yf
 from bs4 import BeautifulSoup
-from statsmodels.stats.diagnostic import acorr_ljungbox
 from scipy import stats
 from scipy.stats import shapiro, normaltest
 
