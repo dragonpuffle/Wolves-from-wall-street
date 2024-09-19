@@ -10,8 +10,7 @@ import yfinance as yf
 from bs4 import BeautifulSoup
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from scipy import stats
-from scipy.stats import shapiro,normaltest
-
+from scipy.stats import shapiro, normaltest
 
 
 def get_names_from_url(URL):
@@ -239,94 +238,75 @@ def count_inversions(data):
                 inversions += 1
     return inversions
 
+
 def get_left_right_borders(data):
-    n=len(data)-1
-    t=0.062707
-    t_n=t*(n**(3/2))/6
-    left=n*(n-1)/4-t_n
-    right=n*(n-1)/4+t_n
-    return left,right
-
-def interesting_point(points, file):
-    # Чтение данных из Excel файла
-    df = pd.read_excel(file)
-
-    for point in points:
-        time_series = df[point].dropna()  # Убираем пропущенные значения
-
-        # Проверяем, является ли ряд пустым
-        if time_series.empty:
-            print(f"Точка {point}: Временной ряд пустой.")
-            continue
-
-        # Подсчитываем количество инверсий
-        num_inversions = count_inversions(time_series.values)
-        print(f"Точка {point}: Количество инверсий = {num_inversions}")
-
-        # Проверяем нормальность распределения временного ряда
-        try:
-            k2, p = stats.normaltest(time_series)
-            print(f"Точка {point}: p-value для нормальности = {p}")
-
-            # Выводим результат проверки нормальности
-            if p < 0.05:
-                print(f"Точка {point}: Данные не следуют нормальному распределению (отклоняем H0)")
-            else:
-                print(f"Точка {point}: Данные следуют нормальному распределению (принимаем H0)")
-        except Exception as e:
-            print(f"Ошибка при проверке нормальности для точки {point}: {e}")
-
-        print('---------------------------------------------------')
+    n = len(data) - 1
+    t = 0.062707
+    t_n = t * (n ** (3 / 2)) / 6
+    left = n * (n - 1) / 4 - t_n
+    right = n * (n - 1) / 4 + t_n
+    return left, right
 
 
-def is_white_noise(points,file):
+def is_white_noise(points, file):
     df = pd.read_excel(file)
     for point in points:
-        data=df[point]
-        inversions=count_inversions(data)
-        left,right=get_left_right_borders(data)
-        if inversions>left and inversions<right:
-            print(point,' является белым шумом')
+        data = df[point]
+        inversions = count_inversions(data)
+        left, right = get_left_right_borders(data)
+        if inversions > left and inversions < right:
+            print(point, ' является белым шумом')
         else:
             print(point, ' не является белым шумом')
+    print('------------------------------------------------')
 
-def is_normal(points,file):
+
+def is_normal(points, file):
     df = pd.read_excel(file)
     for point in points:
-        k2,p=stats.normaltest(df[point][1:])
-        if p<0.05:
-            print(point,' следует нормальному распределению')
+        k2, p = stats.normaltest(df[point][1:])
+        if p < 0.05:
+            print(point, ' следует нормальному распределению')
         else:
             print(point, ' не следует нормальному распределению')
-        print(point,shapiro(df[point][1:]),normaltest(df[point][1:]))
+        print(point, shapiro(df[point][1:]), normaltest(df[point][1:]))
+    print('------------------------------------------------')
 
-def kdeplt(points,file):
+
+def kdeplt(points, file):
     df = pd.read_excel(file)
     for point in points:
         sns.kdeplot(data=df[point][1:], common_norm=False)
+    plt.show()
 
-def histplt(points,file):
+
+def histplt(points, file):
     df = pd.read_excel(file)
     for point in points:
         sns.histplot(data=df[point][1:], bins=len(df[point][1:]), stat="density", element="step", fill=False,
                      cumulative=True, common_norm=False)
+    plt.show()
 
-def count_volatility(points,file):
-    df=pd.read_excel(file)
-    for point in points:
-        volatility=df[point].std()
-        print(f'Стандартное отклонение доходностей: {volatility}')
 
-def find_anomalies(points,file):
+def count_volatility(points, file):
     df = pd.read_excel(file)
     for point in points:
-        q1=df[point].quantile(0.25)
+        volatility = df[point].std()
+        print(f'Стандартное отклонение доходностей: {volatility}')
+    print('------------------------------------------------')
+
+
+def find_anomalies(points, file):
+    df = pd.read_excel(file)
+    for point in points:
+        q1 = df[point].quantile(0.25)
         q3 = df[point].quantile(0.75)
-        iqr=q3-q1
+        iqr = q3 - q1
         lower = q1 - 1.5 * iqr
         upper = q3 + 1.5 * iqr
-        anomalies=(df[point]<lower)|(df[point]>upper)
+        anomalies = (df[point] < lower) | (df[point] > upper)
         print(f'Обнаруженные аномалии:\n{anomalies}')
+    print('------------------------------------------------')
 
 
 if __name__ == '__main__':
@@ -338,11 +318,10 @@ if __name__ == '__main__':
     cvars_file = 'data/cvars.xlsx'
 
     important_dots = ['GMGI', 'SHV', 'CELZ', 'BCDA']
-    #important_dots = ['AAL',	'AAOI',	'AAPL',	'AAXJ',	'ABEO',	'ABTS',	'ABVC',	'ACAD',	'ACHC',	'ACHV',
+    # important_dots = ['AAL',	'AAOI',	'AAPL',	'AAXJ',	'ABEO',	'ABTS',	'ABVC',	'ACAD',	'ACHC',	'ACHV',
     #                  'ACLS',	'ACNT',	'ACWI',	'ADAP',	'ADD',	'ADP',	'ADSK',	'AEHR',	'AEIS',	'AEP',
     #                 'AFMD',	'AGEN', 'AGIO',	'AGNC',	'AGYS',	'AIA',	'AIFF',	'AIRR',	'AIRT']
-    different_dots=['AAPL','TSLA','AZN','TMUS','LIN']
-
+    different_dots = ['AAPL', 'TSLA', 'AZN', 'TMUS', 'LIN']
 
     if not os.path.exists(input_file) or os.stat(input_file).st_size == 0:
         get_data(input_file)  # комментишь это и данные не собираются, хотя лучше просто сделать проверку
@@ -362,13 +341,12 @@ if __name__ == '__main__':
     if not os.path.exists(cvars_file) or os.stat(cvars_file).st_size == 0:
         calculate_cvar(pr_file, pareto_file, cvars_file)
 
-    #interesting_point(important_dots, pr_file)
-    is_white_noise(important_dots,pr_file)
-    is_normal(different_dots,pr_file)
-    kdeplt(different_dots,pr_file)#ПОЧЕМУ ТО ОН ЭТИ ДВЕ РАЗНЫЕ ФУНКЦИИ СТРОИТ НА ОДНОМ ХОЛСТЕ, ПОЧЕМУ
-    histplt(different_dots,pr_file)#
-    count_volatility(different_dots,pr_file)
-    find_anomalies(different_dots,pr_file)
-
+    # interesting_point(important_dots, pr_file)
+    is_white_noise(important_dots, pr_file)
+    is_normal(different_dots, pr_file)
+    kdeplt(different_dots, pr_file)  # ПОЧЕМУ ТО ОН ЭТИ ДВЕ РАЗНЫЕ ФУНКЦИИ СТРОИТ НА ОДНОМ ХОЛСТЕ, ПОЧЕМУ
+    histplt(different_dots, pr_file)  #
+    count_volatility(different_dots, pr_file)
+    find_anomalies(different_dots, pr_file)
 
     create_schedule(mv_file, pareto_file)
