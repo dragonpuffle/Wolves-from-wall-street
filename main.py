@@ -293,9 +293,6 @@ def is_white_noise(points,file):
 def is_normal(points,file):
     df = pd.read_excel(file)
     for point in points:
-        sns.kdeplot(data=df[point][1:], common_norm=False)
-        sns.histplot(data=df[point][1:], bins=len(df[point][1:]), stat="density", element="step", fill=False,
-                     cumulative=True, common_norm=False)
         k2,p=stats.normaltest(df[point][1:])
         if p<0.05:
             print(point,' следует нормальному распределению')
@@ -365,11 +362,11 @@ if __name__ == '__main__':
     if not os.path.exists(cvars_file) or os.stat(cvars_file).st_size == 0:
         calculate_cvar(pr_file, pareto_file, cvars_file)
 
-    interesting_point(important_dots, pr_file)
+    #interesting_point(important_dots, pr_file)
     is_white_noise(important_dots,pr_file)
     is_normal(different_dots,pr_file)
-    kdeplt(different_dots,pr_file)
-    #histplt(different_dots,pr_file)
+    kdeplt(different_dots,pr_file)#ПОЧЕМУ ТО ОН ЭТИ ДВЕ РАЗНЫЕ ФУНКЦИИ СТРОИТ НА ОДНОМ ХОЛСТЕ, ПОЧЕМУ
+    histplt(different_dots,pr_file)#
     count_volatility(different_dots,pr_file)
     find_anomalies(different_dots,pr_file)
 
