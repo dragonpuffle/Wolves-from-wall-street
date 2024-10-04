@@ -309,12 +309,12 @@ def find_anomalies(points, file):
 
 
 if __name__ == '__main__':
-    input_file = 'data/input.xlsx'
-    pr_file = 'data/profitability.xlsx'
-    mv_file = 'data/stock_results.xlsx'
-    pareto_file = 'data/pareto_stocks.xlsx'
-    vars_file = 'data/vars.xlsx'
-    cvars_file = 'data/cvars.xlsx'
+    input_file = 'data1/input.xlsx'
+    pr_file = 'data1/profitability.xlsx'
+    mv_file = 'data1/stock_results.xlsx'
+    pareto_file = 'data1/pareto_stocks.xlsx'
+    vars_file = 'data1/vars.xlsx'
+    cvars_file = 'data1/cvars.xlsx'
 
     important_dots = ['GMGI', 'SHV', 'CELZ', 'BCDA']
     # important_dots = ['AAL',	'AAOI',	'AAPL',	'AAXJ',	'ABEO',	'ABTS',	'ABVC',	'ACAD',	'ACHC',	'ACHV',
