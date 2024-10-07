@@ -10,6 +10,7 @@ import yfinance as yf
 from bs4 import BeautifulSoup
 from main import *
 
+
 def get_tickets_from_url(URL):
     names = []
     response = requests.get(URL)
@@ -21,6 +22,34 @@ def get_tickets_from_url(URL):
     print('number of stocks = ', len(names))
 
     return names
+
+#короче берем какие то 50 активов каким то образом, в лог доходности, а потом сами крч пишите
+#
+num_assets=50 #количество активов
+profitability= #считаем доходность
+mean= #ожидаемая доходность
+cov_matrix = profitability.cov()
+
+#считаем риск для коэффициента Шарпа
+def portfolio_risk(weights, cov_matrix):
+    return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+
+def minimize_risk_with_short_sales():
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})  # это ограничение, сумма весов = 1
+    bounds = tuple((None, None) for x in range(num_assets))  # это границы, разрешение коротких продаж
+    initializer=num_assets * [1./num_assets,] #начальные веса
+    optimal_sharpe_ss =minimize(portfolio_risk, initializer, args=(cov_matrix,),
+                      method='SLSQP', bounds=bounds, constraints=constraints)
+    return result.x
+
+def minimize_risk_without_short_sales():
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+    bounds = tuple((0, 1) for asset in range(num_assets))  # запрет коротких продаж
+    initializer=num_assets * [1./num_assets,]
+    result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
+                      method='SLSQP', bounds=bounds, constraints=constraints)
+    return result.x
+
 
 def get_data(URL,tickets_file,stocks_file):
     if not os.path.exists(tickets_file) or os.stat(tickets_file).st_size == 0:
