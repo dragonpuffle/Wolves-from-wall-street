@@ -34,7 +34,7 @@ def get_data(input_file):
     URL = 'https://www.eoddata.com/stocklist/NASDAQ/'
     names = get_names_from_url(URL)
 
-    file_names = 'names.txt'
+    file_names = 'data1/names.txt'
     names = update_file_names(names, file_names)
 
     download_stocks_to_excel(names, input_file)  # вот это очень долго работает, так что коммент этого делай
