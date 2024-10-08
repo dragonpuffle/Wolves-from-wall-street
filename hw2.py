@@ -50,6 +50,29 @@ def calculate_cov(file_in, file_out):
     cov_matrix.to_excel(file_out, index=False)
 
 
+# считаем риск для коэффициента Шарпа
+def portfolio_risk(weights, cov_matrix):
+    return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+
+
+def minimize_risk_with_short_sales():
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})  # это ограничение, сумма весов = 1
+    bounds = tuple((None, None) for x in range(num_assets))  # это границы, разрешение коротких продаж
+    initializer = num_assets * [1. / num_assets, ]  # начальные веса
+    optimal_sharpe_ss = minimize(portfolio_risk, initializer, args=(cov_matrix,),
+                                 method='SLSQP', bounds=bounds, constraints=constraints)
+    return result.x
+
+
+def minimize_risk_without_short_sales():
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+    bounds = tuple((0, 1) for asset in range(num_assets))  # запрет коротких продаж
+    initializer = num_assets * [1. / num_assets, ]
+    result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
+                      method='SLSQP', bounds=bounds, constraints=constraints)
+    return result.x
+
+
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
     tickets_file = 'data2/tickets.txt'
@@ -70,27 +93,3 @@ if __name__ == '__main__':
 
     if not os.path.exists(cov_file) or os.stat(cov_file).st_size == 0:
         calculate_cov(pr_file2, cov_file)
-
-    # print(cov_num)
-
-    # cov_matrix = profitability.cov()
-    #
-    # #считаем риск для коэффициента Шарпа
-    # def portfolio_risk(weights, cov_matrix):
-    #     return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-    #
-    # def minimize_risk_with_short_sales():
-    #     constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})  # это ограничение, сумма весов = 1
-    #     bounds = tuple((None, None) for x in range(num_assets))  # это границы, разрешение коротких продаж
-    #     initializer=num_assets * [1./num_assets,] #начальные веса
-    #     optimal_sharpe_ss =minimize(portfolio_risk, initializer, args=(cov_matrix,),
-    #                       method='SLSQP', bounds=bounds, constraints=constraints)
-    #     return result.x
-    #
-    # def minimize_risk_without_short_sales():
-    #     constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
-    #     bounds = tuple((0, 1) for asset in range(num_assets))  # запрет коротких продаж
-    #     initializer=num_assets * [1./num_assets,]
-    #     result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
-    #                       method='SLSQP', bounds=bounds, constraints=constraints)
-    #     return result.x
