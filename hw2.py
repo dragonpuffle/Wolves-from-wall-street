@@ -1,13 +1,3 @@
-import os
-import string
-
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import requests
-import seaborn as sns
-import yfinance as yf
-from bs4 import BeautifulSoup
 from main import *
 
 
