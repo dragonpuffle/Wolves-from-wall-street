@@ -49,7 +49,7 @@ def minimize_risk_with_short_sales():
     constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})  # это ограничение, сумма весов = 1
     bounds = tuple((None, None) for x in range(num_assets))  # это границы, разрешение коротких продаж
     initializer = num_assets * [1. / num_assets, ]  # начальные веса
-    optimal_sharpe_ss = minimize(portfolio_risk, initializer, args=(cov_matrix,),
+    result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
                                  method='SLSQP', bounds=bounds, constraints=constraints)
     return result.x
 
