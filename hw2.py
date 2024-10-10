@@ -71,7 +71,8 @@ def find_50stocks(stocks_file,pr_file2, mean_var_file,tickets_file50, stocks_fil
     if not os.path.exists(tickets_file50) or os.stat(tickets_file50).st_size == 0:
         df = pd.read_excel(mean_var_file)
         acceptable=df[(df['Мат ожидание']>0.0001) & (df['Дисперсия']<0.001)]
-        acceptable=acceptable.sort_values(by=['Мат ожидание','Дисперсия'],ascending=(False,True)).reset_index(drop=True)
+        acceptable['Соотношение']=acceptable['Мат ожидание']/acceptable['Дисперсия']
+        acceptable=acceptable.sort_values(by='Соотношение',ascending=False)
         acceptable50=acceptable['Название акции'].head(50)
         save_names_to_file(acceptable50, tickets_file50)
 
