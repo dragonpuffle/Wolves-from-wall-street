@@ -105,42 +105,72 @@ def create_mean_var_graphic(mv_file, pareto_file):
 
 
 def portfolio_with_max_sharpe_short(mean_var_file, cov_file, risk_free_rate=0.01):
-    mean_returns = pd.read_excel(mean_var_file)['Мат ожидание'].to_numpy()  # Преобразуем в numpy массив
-    cov_matrix = pd.read_excel(cov_file).to_numpy()  # Преобразуем ковариационную матрицу в numpy массив
+    mean_returns = pd.read_excel(mean_var_file)['Мат ожидание'].to_numpy()
+    cov_matrix = pd.read_excel(cov_file).to_numpy()
     n = len(mean_returns)
 
     weights = cp.Variable(n)
-    portfolio_return = mean_returns @ weights  # Матричное умножение: средние доходности на веса
-    portfolio_variance = cp.quad_form(weights, cov_matrix)  # Квадратичная форма для дисперсии портфеля
 
-    sharpe_ratio = (portfolio_return - risk_free_rate) / cp.sqrt(portfolio_variance)
-    problem = cp.Problem(cp.Maximize(sharpe_ratio), [cp.sum(weights) == 1])  # Сумма весов = 1
+    # Ожидаемая доходность портфеля
+    portfolio_return = mean_returns @ weights
+
+    # Дисперсия портфеля (квадратичная форма)
+    portfolio_variance = cp.quad_form(weights, cov_matrix)
+
+    # Задача: максимизация (доходность портфеля - доходность безрискового актива)
+    # с условием минимизации дисперсии (в квадрате)
+    objective = cp.Maximize(portfolio_return - risk_free_rate)
+
+    # Ограничения
+    constraints = [
+        cp.sum(weights) == 1,  # Сумма весов должна быть равна 1
+        portfolio_variance <= 1  # Ограничение на дисперсию (ее нормализация)
+    ]
+
+    problem = cp.Problem(objective, constraints)
     problem.solve()
 
+    # Оптимальные веса и характеристики портфеля
     optimal_weights = weights.value
-    portfolio_risk = np.sqrt(portfolio_variance.value)  # Стандартное отклонение (риск)
-    portfolio_return_value = portfolio_return.value  # Средняя доходность портфеля
+    portfolio_risk = np.sqrt(cp.quad_form(optimal_weights, cov_matrix).value)  # Стандартное отклонение (риск)
+    portfolio_return_value = mean_returns @ optimal_weights  # Средняя доходность портфеля
 
     return optimal_weights, portfolio_risk, portfolio_return_value
 
 
 def portfolio_with_max_sharpe_no_short(mean_var_file, cov_file, risk_free_rate=0.01):
-    mean_returns = pd.read_excel(mean_var_file)['Мат ожидание']
-    cov = pd.read_excel(cov_file)
-    n = len(cov.columns)
+    mean_returns = pd.read_excel(mean_var_file)['Мат ожидание'].to_numpy()
+    cov_matrix = pd.read_excel(cov_file).to_numpy()
+    n = len(mean_returns)
 
     weights = cp.Variable(n)
-    portfolio_variance = cp.quad_form(weights, cov)
-    portfolio_return = mean_returns @ weights
-    sharpe_ratio = (portfolio_return - risk_free_rate) / cp.sqrt(portfolio_variance)
 
-    # Оптимизируем коэффициент Шарпа без коротких позиций
-    constraints = [cp.sum(weights) == 1, weights >= 0]  # Сумма весов равна 1, короткие позиции запрещены
-    problem = cp.Problem(cp.Maximize(sharpe_ratio), constraints)
+    # Ожидаемая доходность портфеля
+    portfolio_return = mean_returns @ weights
+
+    # Дисперсия портфеля (квадратичная форма)
+    portfolio_variance = cp.quad_form(weights, cov_matrix)
+
+    # Задача: максимизация (доходность портфеля - доходность безрискового актива)
+    # с условием минимизации дисперсии (в квадрате)
+    objective = cp.Maximize(portfolio_return - risk_free_rate)
+
+    # Ограничения
+    constraints = [
+        cp.sum(weights) == 1,  # Сумма весов должна быть равна 1
+        portfolio_variance <= 1,  # Ограничение на дисперсию (ее нормализация)
+        weights >= 0
+    ]
+
+    problem = cp.Problem(objective, constraints)
     problem.solve()
 
-    optimal_weights_no_short = weights.value
-    return optimal_weights_no_short, np.sqrt(portfolio_variance.value), portfolio_return.value
+    # Оптимальные веса и характеристики портфеля
+    optimal_weights = weights.value
+    portfolio_risk = np.sqrt(cp.quad_form(optimal_weights, cov_matrix).value)  # Стандартное отклонение (риск)
+    portfolio_return_value = mean_returns @ optimal_weights  # Средняя доходность портфеля
+
+    return optimal_weights, portfolio_risk, portfolio_return_value
 
 
 def create_bar_graph_risks(risk_no_short, risk_short):
