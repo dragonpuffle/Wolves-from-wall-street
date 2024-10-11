@@ -41,37 +41,6 @@ def calculate_cov(file_in, file_out):
         cov_matrix.to_excel(file_out, index=False)
 
 
-# считаем риск для коэффициента Шарпа
-def portfolio_risk(weights, cov_matrix):
-    # Убедитесь, что веса суммируются до 1 (нормализация весов)
-    weights = np.array(weights)
-    if not np.isclose(np.sum(weights), 1):
-        raise ValueError("Сумма весов портфеля должна быть равна 1.")
-
-    # Расчёт риска портфеля (стандартное отклонение)
-    return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
-
-
-'''
-def minimize_risk_with_short_sales():
-    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})  # это ограничение, сумма весов = 1
-    bounds = tuple((None, None) for x in range(num_assets))  # это границы, разрешение коротких продаж
-    initializer = num_assets * [1. / num_assets, ]  # начальные веса
-    result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
-                                 method='SLSQP', bounds=bounds, constraints=constraints)
-    return result.x
-
-
-def minimize_risk_without_short_sales():
-    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
-    bounds = tuple((0, 1) for asset in range(num_assets))  # запрет коротких продаж
-    initializer = num_assets * [1. / num_assets, ]
-    result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
-                      method='SLSQP', bounds=bounds, constraints=constraints)
-    return result.x
-'''
-
-
 def find_50stocks(stocks_file, pr_file2, mean_var_file, tickets_file50, stocks_file50, pr_file52, mean_var50,
                   risk_free_rate=0.01):
     if not os.path.exists(tickets_file50) or os.stat(tickets_file50).st_size == 0:
