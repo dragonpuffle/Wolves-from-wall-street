@@ -136,7 +136,7 @@ def portfolio_with_minimal_risk_short(cov_file):
     problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
     problem.solve()
     optimal_weights_short = weights.value
-    return optimal_weights_short,np.sqrt(problem.value)
+    return optimal_weights_short,np.sqrt(problem.value),np.mean(problem.value)
 
 def portfolio_with_minimal_risk_no_short(cov_file):
     cov=pd.read_excel(cov_file)
@@ -148,7 +148,7 @@ def portfolio_with_minimal_risk_no_short(cov_file):
     problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
     problem.solve()
     optimal_weights_no_short = weights.value
-    return optimal_weights_no_short,np.sqrt(problem.value)
+    return optimal_weights_no_short,np.sqrt(problem.value),np.mean(problem.value)
 
 def create_bar_graph_risks(risk_no_short,risk_short):
     plt.figure(figsize=(10, 6))
@@ -163,6 +163,31 @@ def create_bar_graph_weight(optimal_weights):
     plt.bar(tickets, optimal_weights, color=['red'])
     plt.title('Сравнение весов акций')
     plt.ylabel('Вес акции')
+    plt.show()
+
+def create_portfel_graph(risk_short,mean_short,risk_no_short,mean_no_short):
+    fig, ax = plt.subplots()
+    ax.scatter(
+        risk_short,
+        mean_short,
+        marker='o',
+        color='blue',
+        s=80,  # Размер маркера
+        label='short'
+    )
+
+    ax.scatter(
+        risk_no_short,
+        mean_no_short,
+        marker='o',
+        color='green',
+        s=80,
+        label='no_short'
+    )
+    plt.title('Сравнение портфелей')
+    plt.legend()
+    plt.ylabel('mean')
+    plt.xlabel('var')
     plt.show()
 
 if __name__ == '__main__':
@@ -192,8 +217,9 @@ if __name__ == '__main__':
 
     calculate_cov(pr_file52, cov_file)
 
-    optimal_weights_short, risk_short=portfolio_with_minimal_risk_short(cov_file)
+    optimal_weights_short, risk_short,mean_short=portfolio_with_minimal_risk_short(cov_file)
     create_bar_graph_weight(optimal_weights_short)
-    optimal_weights_no_short, risk_no_short=portfolio_with_minimal_risk_no_short(cov_file)
+    optimal_weights_no_short, risk_no_short,mean_no_short=portfolio_with_minimal_risk_no_short(cov_file)
     create_bar_graph_weight(optimal_weights_no_short)
     create_bar_graph_risks(risk_no_short,risk_short)
+    create_portfel_graph(risk_short,mean_short,risk_no_short,mean_no_short)
