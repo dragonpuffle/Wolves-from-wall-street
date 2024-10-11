@@ -104,30 +104,43 @@ def create_mean_var_graphic(mv_file, pareto_file):
     plt.show()
 
 
-def portfolio_with_minimal_risk_short(cov_file):
+def portfolio_with_max_sharpe_short(mean_var_file, cov_file, risk_free_rate=0.01):
+    mean_returns = pd.read_excel(mean_var_file)['Мат ожидание'].to_numpy()  # Преобразуем в numpy массив
+    cov_matrix = pd.read_excel(cov_file).to_numpy()  # Преобразуем ковариационную матрицу в numpy массив
+    n = len(mean_returns)
+
+    weights = cp.Variable(n)
+    portfolio_return = mean_returns @ weights  # Матричное умножение: средние доходности на веса
+    portfolio_variance = cp.quad_form(weights, cov_matrix)  # Квадратичная форма для дисперсии портфеля
+
+    sharpe_ratio = (portfolio_return - risk_free_rate) / cp.sqrt(portfolio_variance)
+    problem = cp.Problem(cp.Maximize(sharpe_ratio), [cp.sum(weights) == 1])  # Сумма весов = 1
+    problem.solve()
+
+    optimal_weights = weights.value
+    portfolio_risk = np.sqrt(portfolio_variance.value)  # Стандартное отклонение (риск)
+    portfolio_return_value = portfolio_return.value  # Средняя доходность портфеля
+
+    return optimal_weights, portfolio_risk, portfolio_return_value
+
+
+def portfolio_with_max_sharpe_no_short(mean_var_file, cov_file, risk_free_rate=0.01):
+    mean_returns = pd.read_excel(mean_var_file)['Мат ожидание']
     cov = pd.read_excel(cov_file)
     n = len(cov.columns)
 
     weights = cp.Variable(n)
     portfolio_variance = cp.quad_form(weights, cov)
-    constraints = [cp.sum(weights) == 1]
-    problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
+    portfolio_return = mean_returns @ weights
+    sharpe_ratio = (portfolio_return - risk_free_rate) / cp.sqrt(portfolio_variance)
+
+    # Оптимизируем коэффициент Шарпа без коротких позиций
+    constraints = [cp.sum(weights) == 1, weights >= 0]  # Сумма весов равна 1, короткие позиции запрещены
+    problem = cp.Problem(cp.Maximize(sharpe_ratio), constraints)
     problem.solve()
-    optimal_weights_short = weights.value
-    return optimal_weights_short, np.sqrt(problem.value), np.mean(problem.value)
 
-
-def portfolio_with_minimal_risk_no_short(cov_file):
-    cov = pd.read_excel(cov_file)
-    n = len(cov.columns)
-
-    weights = cp.Variable(n)
-    portfolio_variance = cp.quad_form(weights, cov)
-    constraints = [cp.sum(weights) == 1, weights >= 0]
-    problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
-    problem.solve()
     optimal_weights_no_short = weights.value
-    return optimal_weights_no_short, np.sqrt(problem.value), np.mean(problem.value)
+    return optimal_weights_no_short, np.sqrt(portfolio_variance.value), portfolio_return.value
 
 
 def create_bar_graph_risks(risk_no_short, risk_short):
@@ -200,9 +213,9 @@ if __name__ == '__main__':
 
     calculate_cov(pr_file52, cov_file)
 
-    optimal_weights_short, risk_short, mean_short = portfolio_with_minimal_risk_short(cov_file)
+    optimal_weights_short, risk_short, mean_short = portfolio_with_max_sharpe_short(mean_var50, cov_file)
     create_bar_graph_weight(optimal_weights_short)
-    optimal_weights_no_short, risk_no_short, mean_no_short = portfolio_with_minimal_risk_no_short(cov_file)
+    optimal_weights_no_short, risk_no_short, mean_no_short = portfolio_with_max_sharpe_no_short(mean_var50, cov_file)
     create_bar_graph_weight(optimal_weights_no_short)
     create_bar_graph_risks(risk_no_short, risk_short)
     create_portfel_graph(risk_short, mean_short, risk_no_short, mean_no_short)
