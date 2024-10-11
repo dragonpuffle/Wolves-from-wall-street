@@ -1,7 +1,8 @@
+import matplotlib.pyplot as plt
 import pandas as pd
 
 from main import *
-
+import cvxpy as cp
 
 def get_tickets_from_url(URL):
     names = []
@@ -125,6 +126,44 @@ def create_mean_var_graphic(mv_file,pareto_file):
     ax.legend()
     plt.show()
 
+def portfolio_with_minimal_risk_short(cov_file):
+    cov=pd.read_excel(cov_file)
+    n=len(cov.columns)
+
+    weights=cp.Variable(n)
+    portfolio_variance = cp.quad_form(weights, cov)
+    constraints = [cp.sum(weights) == 1]
+    problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
+    problem.solve()
+    optimal_weights_short = weights.value
+    return optimal_weights_short,np.sqrt(problem.value)
+
+def portfolio_with_minimal_risk_no_short(cov_file):
+    cov=pd.read_excel(cov_file)
+    n=len(cov.columns)
+
+    weights=cp.Variable(n)
+    portfolio_variance = cp.quad_form(weights, cov)
+    constraints = [cp.sum(weights) == 1, weights >= 0]
+    problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
+    problem.solve()
+    optimal_weights_no_short = weights.value
+    return optimal_weights_no_short,np.sqrt(problem.value)
+
+def create_bar_graph_risks(risk_no_short,risk_short):
+    plt.figure(figsize=(10, 6))
+    plt.bar(['С короткими', 'Без коротких'], [risk_short, risk_no_short], color=['blue', 'orange'])
+    plt.title('Сравнение рисков портфелей')
+    plt.ylabel('Стандартное отклонение (Риск)')
+    plt.show()
+
+def create_bar_graph_weight(optimal_weights):
+    plt.figure(figsize=(10, 6))
+    tickets=range(0,50)
+    plt.bar(tickets, optimal_weights, color=['red'])
+    plt.title('Сравнение весов акций')
+    plt.ylabel('Вес акции')
+    plt.show()
 
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
@@ -141,17 +180,20 @@ if __name__ == '__main__':
     pareto50='data2/pareto50.xlsx'
 
     download_data(URL, tickets_file, stocks_file)
-
     profitability(stocks_file, pr_file2)
-
     calculate_mean_var(pr_file2, mean_var)
 
     find_50stocks(stocks_file,pr_file2, mean_var,tickets_file50,stocks_file50,pr_file52,mean_var50)
 
     find_pareto(mean_var50,pareto50)
-
     create_mean_var_graphic(mean_var50,pareto50)
 
     num_assets = len(pd.read_excel(pr_file2).columns)
 
     calculate_cov(pr_file52, cov_file)
+
+    optimal_weights_short, risk_short=portfolio_with_minimal_risk_short(cov_file)
+    create_bar_graph_weight(optimal_weights_short)
+    optimal_weights_no_short, risk_no_short=portfolio_with_minimal_risk_no_short(cov_file)
+    create_bar_graph_weight(optimal_weights_no_short)
+    create_bar_graph_risks(risk_no_short,risk_short)
