@@ -16,7 +16,7 @@ def get_tickets_from_url(URL):
     return names
 
 
-def get_data(URL, tickets_file, stocks_file):
+def download_data(URL, tickets_file, stocks_file):
     if not os.path.exists(tickets_file) or os.stat(tickets_file).st_size == 0:
         print('parcing tickets')
         tickets = get_tickets_from_url(URL)
@@ -97,6 +97,35 @@ def find_50stocks(stocks_file,pr_file2, mean_var_file,tickets_file50, stocks_fil
 
     print(len(get_names_from_file(tickets_file50)))
 
+def create_mean_var_graphic(mv_file,pareto_file):
+    df_mv = pd.read_excel(mv_file)
+    pareto = pd.read_excel(pareto_file)
+    fig, ax = plt.subplots()
+
+    sns.scatterplot(
+        data=df_mv,
+        y='Мат ожидание',
+        x='Дисперсия',
+        ax=ax,
+        color='#40f4ef',
+        label='MV Data',
+    )
+
+    # Строим второй график
+    sns.scatterplot(
+        data=pareto,
+        y='Мат ожидание',
+        x='Дисперсия',
+        ax=ax,
+        s=100,
+        marker='x',
+        color='red',
+        label='Pareto Data'
+    )
+    ax.legend()
+    plt.show()
+
+
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
     tickets_file = 'data2/tickets.txt'
@@ -109,16 +138,19 @@ if __name__ == '__main__':
     stocks_file50='data2/stocks50.xlsx'
     pr_file52 = 'data2/profitability50.xlsx'
     mean_var50 = 'data2/mean_var50.xlsx'
+    pareto50='data2/pareto50.xlsx'
 
-    get_data(URL, tickets_file, stocks_file)
+    download_data(URL, tickets_file, stocks_file)
 
-    if not os.path.exists(pr_file2) or os.stat(pr_file2).st_size == 0:
-        profitability(stocks_file, pr_file2)
+    profitability(stocks_file, pr_file2)
 
-    if not os.path.exists(mean_var) or os.stat(mean_var).st_size == 0:
-        calculate_mean_var(pr_file2, mean_var)
+    calculate_mean_var(pr_file2, mean_var)
 
     find_50stocks(stocks_file,pr_file2, mean_var,tickets_file50,stocks_file50,pr_file52,mean_var50)
+
+    find_pareto(mean_var50,pareto50)
+
+    create_mean_var_graphic(mean_var50,pareto50)
 
     num_assets = len(pd.read_excel(pr_file2).columns)
 
