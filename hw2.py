@@ -1,8 +1,6 @@
-import matplotlib.pyplot as plt
-import pandas as pd
+import cvxpy as cp
 
 from main import *
-import cvxpy as cp
 
 
 def get_tickets_from_url(URL):
@@ -39,16 +37,18 @@ def download_data(URL, tickets_file, stocks_file):
 def calculate_cov(file_in, file_out):
     if not os.path.exists(cov_file) or os.stat(cov_file).st_size == 0:
         df = pd.read_excel(file_in)
-        # result = []
-        #
-        # cov_num = np.cov(df['Мат ожидание'])
-        # return cov_num
         cov_matrix = df.cov()
         cov_matrix.to_excel(file_out, index=False)
 
 
 # считаем риск для коэффициента Шарпа
 def portfolio_risk(weights, cov_matrix):
+    # Убедитесь, что веса суммируются до 1 (нормализация весов)
+    weights = np.array(weights)
+    if not np.isclose(np.sum(weights), 1):
+        raise ValueError("Сумма весов портфеля должна быть равна 1.")
+
+    # Расчёт риска портфеля (стандартное отклонение)
     return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
 
 
@@ -72,12 +72,15 @@ def minimize_risk_without_short_sales():
 '''
 
 
-def find_50stocks(stocks_file, pr_file2, mean_var_file, tickets_file50, stocks_file50, pr_file52, mean_var50):
+def find_50stocks(stocks_file, pr_file2, mean_var_file, tickets_file50, stocks_file50, pr_file52, mean_var50,
+                  risk_free_rate=0.01):
     if not os.path.exists(tickets_file50) or os.stat(tickets_file50).st_size == 0:
         df = pd.read_excel(mean_var_file)
+        # Убираем акции с отрицательным мат ожиданием и слишком высокой дисперсией
         acceptable = df[(df['Мат ожидание'] > 0.0001) & (df['Дисперсия'] < 0.001)]
-        acceptable['Соотношение'] = acceptable['Мат ожидание'] / acceptable['Дисперсия']
-        acceptable = acceptable.sort_values(by='Соотношение', ascending=False)
+        # Рассчитываем коэффициент Шарпа (Sharpe Ratio = (Мат ожидание - Безрисковая ставка) / Стандартное отклонение)
+        acceptable['Sharpe Ratio'] = (acceptable['Мат ожидание'] - risk_free_rate) / acceptable['Дисперсия'] ** 0.5
+        acceptable = acceptable.sort_values(by='Sharpe Ratio', ascending=False)
         acceptable50 = acceptable['Название акции'].head(50)
         save_names_to_file(acceptable50, tickets_file50)
 
