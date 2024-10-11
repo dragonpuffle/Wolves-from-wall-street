@@ -1,4 +1,6 @@
 import cvxpy as cp
+import pandas as pd
+import scipy.optimize as optimize
 
 from main import *
 
@@ -42,7 +44,8 @@ def calculate_cov(file_in, file_out):
 
 
 # считаем риск для коэффициента Шарпа
-def portfolio_risk(weights, cov_matrix):
+def portfolio_risk(weights, cov_file):
+    cov_matrix=pd.read_excel(cov_file)
     # Убедитесь, что веса суммируются до 1 (нормализация весов)
     weights = np.array(weights)
     if not np.isclose(np.sum(weights), 1):
@@ -52,25 +55,39 @@ def portfolio_risk(weights, cov_matrix):
     return np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
 
 
-'''
-def minimize_risk_with_short_sales():
-    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})  # это ограничение, сумма весов = 1
-    bounds = tuple((None, None) for x in range(num_assets))  # это границы, разрешение коротких продаж
-    initializer = num_assets * [1. / num_assets, ]  # начальные веса
-    result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
-                                 method='SLSQP', bounds=bounds, constraints=constraints)
-    return result.x
+
+def minimize_risk_with_short_sales(cov_file,portfolio_short_file):
+    if not os.path.exists(portfolio_short_file) or os.stat(portfolio_short_file).st_size == 0:
+        cov_matrix = pd.read_excel(cov_file)
+        num_assets = cov_matrix.shape[0]
+        constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})  # это ограничение, сумма весов = 1
+        bounds = tuple((-1, 1) for x in range(num_assets))  # это границы, разрешение коротких продаж
+        initializer = num_assets * [1. / num_assets, ]  # начальные веса
+        result = optimize.minimize(portfolio_risk, initializer, args=(cov_file,),
+                                   method='SLSQP', bounds=bounds, constraints=constraints)
+        res=pd.DataFrame(result.x)
+        res.to_excel(portfolio_short_file)
 
 
-def minimize_risk_without_short_sales():
-    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
-    bounds = tuple((0, 1) for asset in range(num_assets))  # запрет коротких продаж
-    initializer = num_assets * [1. / num_assets, ]
-    result = minimize(portfolio_risk, initializer, args=(cov_matrix,),
-                      method='SLSQP', bounds=bounds, constraints=constraints)
-    return result.x
-'''
+def minimize_risk_without_short_sales(cov_file,portfolio_no_short_file):
+    if not os.path.exists(portfolio_no_short_file) or os.stat(portfolio_no_short_file).st_size == 0:
+        cov_matrix = pd.read_excel(cov_file)
+        num_assets = cov_matrix.shape[0]
+        constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+        bounds = tuple((0, 1) for asset in range(num_assets))  # запрет коротких продаж
+        initializer = num_assets * [1. / num_assets, ]
+        result = optimize.minimize(portfolio_risk, initializer, args=(cov_file,),
+                                   method='SLSQP', bounds=bounds, constraints=constraints)
+        res = pd.DataFrame(result.x)
+        res.to_excel(portfolio_no_short_file)
 
+def portfolio(weights,returns_file):
+    weights = np.array(weights)
+    returns=pd.read_excel(returns_file)
+    port_return = np.sum(returns.mean() * weights) * 252
+    port_vol = np.sqrt(np.dot(weights.T, np.dot(returns.cov() * 252, weights)))
+    sharpe = port_return / port_vol
+    return port_return, port_vol, sharpe
 
 def find_50stocks(stocks_file, pr_file2, mean_var_file, tickets_file50, stocks_file50, pr_file52, mean_var50,
                   risk_free_rate=0.01):
@@ -178,7 +195,7 @@ def create_bar_graph_weight(optimal_weights):
     plt.show()
 
 
-def create_portfel_graph(risk_short, mean_short, risk_no_short, mean_no_short):
+def create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short):
     fig, ax = plt.subplots()
     ax.scatter(
         risk_short,
@@ -218,6 +235,9 @@ if __name__ == '__main__':
     mean_var50 = 'data2/mean_var50.xlsx'
     pareto50 = 'data2/pareto50.xlsx'
 
+    portfolio_short_file='data2/portfolio_short.xlsx'
+    portfolio_no_short_file = 'data2/portfolio_no_short.xlsx'
+
     download_data(URL, tickets_file, stocks_file)
     profitability(stocks_file, pr_file2)
     calculate_mean_var(pr_file2, mean_var)
@@ -227,13 +247,28 @@ if __name__ == '__main__':
     find_pareto(mean_var50, pareto50)
     create_mean_var_graphic(mean_var50, pareto50)
 
-    num_assets = len(pd.read_excel(pr_file2).columns)
+    num_assets = len(pd.read_excel(pr_file52).columns)
 
     calculate_cov(pr_file52, cov_file)
 
+    minimize_risk_with_short_sales(cov_file,portfolio_short_file)
+    weights_short=pd.read_excel(portfolio_short_file)[0]
+    port_return_short, port_vol_short, sharpe_short=portfolio(weights_short,pr_file52)
+    create_bar_graph_weight(weights_short)
+
+    minimize_risk_without_short_sales(cov_file,portfolio_no_short_file)
+    weights_no_short=pd.read_excel(portfolio_no_short_file)[0]
+    port_return_no_short, port_vol_no_short, sharpe_no_short = portfolio(weights_no_short, pr_file52)
+    create_bar_graph_weight(weights_no_short)
+
+    create_bar_graph_risks(port_vol_no_short, port_vol_short)
+    create_portfolio_graph(port_vol_short,port_return_short,port_vol_no_short,port_return_no_short)
+
+    '''
     optimal_weights_short, risk_short, mean_short = portfolio_with_minimal_risk_short(cov_file)
     create_bar_graph_weight(optimal_weights_short)
     optimal_weights_no_short, risk_no_short, mean_no_short = portfolio_with_minimal_risk_no_short(cov_file)
     create_bar_graph_weight(optimal_weights_no_short)
     create_bar_graph_risks(risk_no_short, risk_short)
-    create_portfel_graph(risk_short, mean_short, risk_no_short, mean_no_short)
+    create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short)
+    '''
