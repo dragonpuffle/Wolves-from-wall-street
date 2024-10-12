@@ -1,5 +1,7 @@
 import scipy.optimize as optimize
-from pypfopt.efficient_frontier import EfficientFrontier #pip install pyportfolioopt
+from pypfopt import plotting
+from pypfopt.efficient_frontier import EfficientFrontier  # pip install pyportfolioopt
+
 from main import *
 
 
@@ -112,36 +114,42 @@ def find_min_max_portfolio_return_short(cov_file,min_max_portfolio_return_short_
 
         res.to_excel(min_max_portfolio_return_short_file)
 
-def efficient_frontier_short(cov_file,eff_front_short_file,returns_file,min_max_portfolio_return_short_file):
-    if not os.path.exists(eff_front_short_file) or os.stat(
-            eff_front_short_file).st_size == 0:
-        cov_matrix = pd.read_excel(cov_file)
-        num_assets = cov_matrix.shape[0]
-        initializer = num_assets * [1. / num_assets, ]
-        min_max_portfolio_return_short=pd.read_excel(min_max_portfolio_return_short_file)
-        min_return_portfolio, max_returns_portfolio=portfolio(min_max_portfolio_return_short['min'],returns_file),portfolio(min_max_portfolio_return_short['max'],returns_file)
-        target_returns = np.linspace(min_return_portfolio, max_returns_portfolio, 50)
-        minimal_volatilities = []
-        bounds = tuple((0, 1) for asset in range(num_assets))
+def efficient_frontier(cov_file,mv_file,pic):
+    returns = pd.read_excel(mv_file)
+    cov = pd.read_excel(cov_file)
+    fig, ax = plt.subplots()
+    ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
+    plotting.plot_efficient_frontier(ef,ax=ax,ef_param_range=np.linspace(0.00, 0.006, 100),c='blue',)
+    ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
+    plotting.plot_efficient_frontier(ef, ax=ax,c='green')
+    plt.legend(['Short sales allowed', 'short assets','no short assets','Short sales not allowed'])
+    plt.show()
+    #plt.savefig(pic)
 
-        for target_return in target_returns:
-            constraints = ({'type': 'eq', 'fun': lambda x: portfolio_return(x,returns_file) - target_return},
-                           {'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
 
-            optimal = optimize.minimize(portfolio_risk,
-                                        initializer,
-                                        args=(cov_file,),
-                                        method='SLSQP',
-                                        bounds=bounds,
-                                        constraints=constraints)
-
-            minimal_volatilities.append(optimal['fun'])
-
+def efficient_frontier_short(cov_file,mv_file,ef_short_file):
+    if not os.path.exists(ef_short_file) or os.stat(ef_short_file).st_size == 0:
+        returns=pd.read_excel(mv_file)
+        cov=pd.read_excel(cov_file)
+        ef=EfficientFrontier(returns['Мат ожидание'],cov,weight_bounds=(-1,1))
+        minvol = ef.min_volatility()
+        weights=ef.clean_weights()
         res=pd.DataFrame()
-        res['mean']=minimal_volatilities
-        res['var']=target_returns
-        res.to_excel(eff_front_short_file)
+        res['ticket']=returns['Название акции']
+        res['weights']=weights
+        res.to_excel(ef_short_file)
 
+def efficient_frontier_no_short(cov_file,mv_file,ef_no_short_file):
+    if not os.path.exists(ef_no_short_file) or os.stat(ef_no_short_file).st_size == 0:
+        returns=pd.read_excel(mv_file)
+        cov=pd.read_excel(cov_file)
+        ef=EfficientFrontier(returns['Мат ожидание'],cov,weight_bounds=(0,1))
+        minvol = ef.min_volatility()
+        weights=ef.clean_weights()
+        res=pd.DataFrame()
+        res['ticket']=returns['Название акции']
+        res['weights']=weights
+        res.to_excel(ef_no_short_file)
 
 def find_50stocks(stocks_file, pr_file2, mean_var_file, tickets_file50, stocks_file50, pr_file52, mean_var50,
                   risk_free_rate=0.01):
@@ -279,7 +287,9 @@ if __name__ == '__main__':
     portfolio_min_risk_no_short_file = 'data2/portfolio_min_risk_no_short.xlsx'
 
     min_max_portfolio_return_short_file='data2/min_max_port_return_short.xlsx'
-    eff_front_short_file='data2/eff_front_short.xlsx'
+    ef_short_file='data2/ef_short.xlsx'
+    ef_no_short_file = 'data2/ef_no_short.xlsx'
+    pic='data2/Efficient_frontiers.png'
 
     download_data(URL, tickets_file, stocks_file)
     profitability(stocks_file, pr_file2)
@@ -290,7 +300,7 @@ if __name__ == '__main__':
     create_mean_var_graphic(mean_var50, pareto50)
     num_assets = len(pd.read_excel(pr_file52).columns)
     calculate_cov(pr_file52, cov_file)
-
+    '''
     minimize_risk_with_short_sales(cov_file, portfolio_min_risk_short_file)
     weights_min_risk_short = pd.read_excel(portfolio_min_risk_short_file)[0]
     port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short = portfolio(weights_min_risk_short, pr_file52)
@@ -305,9 +315,8 @@ if __name__ == '__main__':
 
     create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
     create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short, port_min_risk_return_no_short)
+    '''
+    #efficient_frontier_short(cov_file,mean_var50,ef_short_file)
+    #efficient_frontier_no_short(cov_file, mean_var50, ef_no_short_file)
 
-# до этого момента все збс
-
-    #find_min_max_portfolio_return_short(cov_file,min_max_portfolio_return_short_file)
-    #efficient_frontier_short(cov_file,eff_front_short_file,pr_file52,min_max_portfolio_return_short_file)
-
+    efficient_frontier(cov_file,mean_var50,pic)
