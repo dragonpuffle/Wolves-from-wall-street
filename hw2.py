@@ -89,67 +89,77 @@ def portfolio(weights, returns_file):
     sharpe = port_return / port_vol
     return port_return, port_vol, sharpe
 
+
 def portfolio_return(weights, returns_file):
     weights = np.array(weights)
     returns = pd.read_excel(returns_file)
     port_return = np.sum(returns.mean() * weights) * 252
     return port_return
 
+
 def maximize_portfolio_return(weights, returns_file):
-    return -portfolio_return(weights,returns_file)
-def find_min_max_portfolio_return_short(cov_file,min_max_portfolio_return_short_file):
-    if not os.path.exists(min_max_portfolio_return_short_file) or os.stat(min_max_portfolio_return_short_file).st_size == 0:
+    return -portfolio_return(weights, returns_file)
+
+
+def find_min_max_portfolio_return_short(cov_file, min_max_portfolio_return_short_file):
+    if not os.path.exists(min_max_portfolio_return_short_file) or os.stat(
+            min_max_portfolio_return_short_file).st_size == 0:
         cov_matrix = pd.read_excel(cov_file)
         num_assets = cov_matrix.shape[0]
         constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
         bounds = tuple((-1, 1) for asset in range(num_assets))
         initializer = num_assets * [1. / num_assets, ]
         result1 = optimize.minimize(portfolio_return, initializer, args=(cov_file,),
-                                   method='SLSQP', bounds=bounds, constraints=constraints)
+                                    method='SLSQP', bounds=bounds, constraints=constraints)
         result2 = optimize.minimize(maximize_portfolio_return, initializer, args=(cov_file,),
                                     method='SLSQP', bounds=bounds, constraints=constraints)
         res = pd.DataFrame()
-        res['min']=result1.x
-        res['max']=result2.x
+        res['min'] = result1.x
+        res['max'] = result2.x
 
         res.to_excel(min_max_portfolio_return_short_file)
 
-def efficient_frontier(cov_file,mv_file,pic):
+
+def efficient_frontier(cov_file, mv_file, pic):
     returns = pd.read_excel(mv_file)
     cov = pd.read_excel(cov_file)
     fig, ax = plt.subplots()
     ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
-    plotting.plot_efficient_frontier(ef,ax=ax,ef_param_range=np.linspace(0.00, 0.006, 100),c='blue',)
-    ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
-    plotting.plot_efficient_frontier(ef, ax=ax,c='green')
-    plt.legend(['Short sales allowed', 'short assets','no short assets','Short sales not allowed'])
+    plotting.plot_efficient_frontier(ef, ax=ax, ef_param_range=np.linspace(0.00, 0.006, 100), c='blue', )
+    plt.legend(['Короткие продажи\nразрешены', 'short assets'])
     plt.show()
-    #plt.savefig(pic)
+    fig, ax = plt.subplots()
+    ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
+    plotting.plot_efficient_frontier(ef, ax=ax, c='green')
+    plt.legend(['Короткие продажи запрещены', 'no short assets'])
+    plt.show()
 
 
-def efficient_frontier_short(cov_file,mv_file,ef_short_file):
+def efficient_frontier_short(cov_file, mv_file, ef_short_file):
     if not os.path.exists(ef_short_file) or os.stat(ef_short_file).st_size == 0:
-        returns=pd.read_excel(mv_file)
-        cov=pd.read_excel(cov_file)
-        ef=EfficientFrontier(returns['Мат ожидание'],cov,weight_bounds=(-1,1))
+        returns = pd.read_excel(mv_file)
+        cov = pd.read_excel(cov_file)
+        ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
         minvol = ef.min_volatility()
-        weights=ef.clean_weights()
-        res=pd.DataFrame()
-        res['ticket']=returns['Название акции']
-        res['weights']=weights
+        weights = ef.clean_weights()
+        res = pd.DataFrame()
+        res['ticket'] = returns['Название акции']
+        res['weights'] = weights
         res.to_excel(ef_short_file)
 
-def efficient_frontier_no_short(cov_file,mv_file,ef_no_short_file):
+
+def efficient_frontier_no_short(cov_file, mv_file, ef_no_short_file):
     if not os.path.exists(ef_no_short_file) or os.stat(ef_no_short_file).st_size == 0:
-        returns=pd.read_excel(mv_file)
-        cov=pd.read_excel(cov_file)
-        ef=EfficientFrontier(returns['Мат ожидание'],cov,weight_bounds=(0,1))
+        returns = pd.read_excel(mv_file)
+        cov = pd.read_excel(cov_file)
+        ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
         minvol = ef.min_volatility()
-        weights=ef.clean_weights()
-        res=pd.DataFrame()
-        res['ticket']=returns['Название акции']
-        res['weights']=weights
+        weights = ef.clean_weights()
+        res = pd.DataFrame()
+        res['ticket'] = returns['Название акции']
+        res['weights'] = weights
         res.to_excel(ef_no_short_file)
+
 
 def find_50stocks(stocks_file, pr_file2, mean_var_file, tickets_file50, stocks_file50, pr_file52, mean_var50,
                   risk_free_rate=0.01):
@@ -256,10 +266,11 @@ def create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short)
     plt.xlabel('var')
     plt.show()
 
+
 def create_portfolios_graph(eff_front_file):
-    df=pd.read_excel(eff_front_file)
-    port_vols=df['var']
-    port_returns=df['mean']
+    df = pd.read_excel(eff_front_file)
+    port_vols = df['var']
+    port_returns = df['mean']
     plt.figure(figsize=(18, 10))
     plt.scatter(port_vols,
                 port_returns,
@@ -268,6 +279,7 @@ def create_portfolios_graph(eff_front_file):
     plt.xlabel('Portfolio Volatility')
     plt.ylabel('Portfolio Return')
     plt.colorbar(label='Sharpe ratio (not adjusted for short rate)')
+
 
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
@@ -306,13 +318,13 @@ if __name__ == '__main__':
     port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short = portfolio(weights_min_risk_short, pr_file52)
     print(port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short)
     create_bar_graph_weight(weights_min_risk_short)
-
+    
     minimize_risk_without_short_sales(cov_file, portfolio_min_risk_no_short_file)
     weights_min_risk_no_short = pd.read_excel(portfolio_min_risk_no_short_file)[0]
     port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short = portfolio(weights_min_risk_no_short, pr_file52)
     print(port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short)
     create_bar_graph_weight(weights_min_risk_no_short)
-
+    
     create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
     create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short, port_min_risk_return_no_short)
     '''
