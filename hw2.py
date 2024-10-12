@@ -1,7 +1,5 @@
-import cvxpy as cp
-import pandas as pd
 import scipy.optimize as optimize
-
+from pypfopt.efficient_frontier import EfficientFrontier #pip install pyportfolioopt
 from main import *
 
 
@@ -89,6 +87,61 @@ def portfolio(weights, returns_file):
     sharpe = port_return / port_vol
     return port_return, port_vol, sharpe
 
+def portfolio_return(weights, returns_file):
+    weights = np.array(weights)
+    returns = pd.read_excel(returns_file)
+    port_return = np.sum(returns.mean() * weights) * 252
+    return port_return
+
+def maximize_portfolio_return(weights, returns_file):
+    return -portfolio_return(weights,returns_file)
+def find_min_max_portfolio_return_short(cov_file,min_max_portfolio_return_short_file):
+    if not os.path.exists(min_max_portfolio_return_short_file) or os.stat(min_max_portfolio_return_short_file).st_size == 0:
+        cov_matrix = pd.read_excel(cov_file)
+        num_assets = cov_matrix.shape[0]
+        constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+        bounds = tuple((-1, 1) for asset in range(num_assets))
+        initializer = num_assets * [1. / num_assets, ]
+        result1 = optimize.minimize(portfolio_return, initializer, args=(cov_file,),
+                                   method='SLSQP', bounds=bounds, constraints=constraints)
+        result2 = optimize.minimize(maximize_portfolio_return, initializer, args=(cov_file,),
+                                    method='SLSQP', bounds=bounds, constraints=constraints)
+        res = pd.DataFrame()
+        res['min']=result1.x
+        res['max']=result2.x
+
+        res.to_excel(min_max_portfolio_return_short_file)
+
+def efficient_frontier_short(cov_file,eff_front_short_file,returns_file,min_max_portfolio_return_short_file):
+    if not os.path.exists(eff_front_short_file) or os.stat(
+            eff_front_short_file).st_size == 0:
+        cov_matrix = pd.read_excel(cov_file)
+        num_assets = cov_matrix.shape[0]
+        initializer = num_assets * [1. / num_assets, ]
+        min_max_portfolio_return_short=pd.read_excel(min_max_portfolio_return_short_file)
+        min_return_portfolio, max_returns_portfolio=portfolio(min_max_portfolio_return_short['min'],returns_file),portfolio(min_max_portfolio_return_short['max'],returns_file)
+        target_returns = np.linspace(min_return_portfolio, max_returns_portfolio, 50)
+        minimal_volatilities = []
+        bounds = tuple((0, 1) for asset in range(num_assets))
+
+        for target_return in target_returns:
+            constraints = ({'type': 'eq', 'fun': lambda x: portfolio_return(x,returns_file) - target_return},
+                           {'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+
+            optimal = optimize.minimize(portfolio_risk,
+                                        initializer,
+                                        args=(cov_file,),
+                                        method='SLSQP',
+                                        bounds=bounds,
+                                        constraints=constraints)
+
+            minimal_volatilities.append(optimal['fun'])
+
+        res=pd.DataFrame()
+        res['mean']=minimal_volatilities
+        res['var']=target_returns
+        res.to_excel(eff_front_short_file)
+
 
 def find_50stocks(stocks_file, pr_file2, mean_var_file, tickets_file50, stocks_file50, pr_file52, mean_var50,
                   risk_free_rate=0.01):
@@ -153,32 +206,6 @@ def create_mean_var_graphic(mv_file, pareto_file):
     plt.show()
 
 
-def portfolio_with_minimal_risk_short(cov_file):
-    cov = pd.read_excel(cov_file)
-    n = len(cov.columns)
-
-    weights = cp.Variable(n)
-    portfolio_variance = cp.quad_form(weights, cov)
-    constraints = [cp.sum(weights) == 1]
-    problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
-    problem.solve()
-    optimal_weights_short = weights.value
-    return optimal_weights_short, np.sqrt(problem.value), np.mean(problem.value)
-
-
-def portfolio_with_minimal_risk_no_short(cov_file):
-    cov = pd.read_excel(cov_file)
-    n = len(cov.columns)
-
-    weights = cp.Variable(n)
-    portfolio_variance = cp.quad_form(weights, cov)
-    constraints = [cp.sum(weights) == 1, weights >= 0]
-    problem = cp.Problem(cp.Minimize(portfolio_variance), constraints)
-    problem.solve()
-    optimal_weights_no_short = weights.value
-    return optimal_weights_no_short, np.sqrt(problem.value), np.mean(problem.value)
-
-
 def create_bar_graph_risks(risk_no_short, risk_short):
     plt.figure(figsize=(10, 6))
     plt.bar(['С короткими', 'Без коротких'], [risk_short, risk_no_short], color=['blue', 'orange'])
@@ -221,6 +248,18 @@ def create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short)
     plt.xlabel('var')
     plt.show()
 
+def create_portfolios_graph(eff_front_file):
+    df=pd.read_excel(eff_front_file)
+    port_vols=df['var']
+    port_returns=df['mean']
+    plt.figure(figsize=(18, 10))
+    plt.scatter(port_vols,
+                port_returns,
+                c=(port_returns / port_vols),
+                marker='o')
+    plt.xlabel('Portfolio Volatility')
+    plt.ylabel('Portfolio Return')
+    plt.colorbar(label='Sharpe ratio (not adjusted for short rate)')
 
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
@@ -236,40 +275,39 @@ if __name__ == '__main__':
     mean_var50 = 'data2/mean_var50.xlsx'
     pareto50 = 'data2/pareto50.xlsx'
 
-    portfolio_short_file = 'data2/portfolio_short.xlsx'
-    portfolio_no_short_file = 'data2/portfolio_no_short.xlsx'
+    portfolio_min_risk_short_file = 'data2/portfolio_min_risk_short.xlsx'
+    portfolio_min_risk_no_short_file = 'data2/portfolio_min_risk_no_short.xlsx'
+
+    min_max_portfolio_return_short_file='data2/min_max_port_return_short.xlsx'
+    eff_front_short_file='data2/eff_front_short.xlsx'
 
     download_data(URL, tickets_file, stocks_file)
     profitability(stocks_file, pr_file2)
     calculate_mean_var(pr_file2, mean_var)
 
     find_50stocks(stocks_file, pr_file2, mean_var, tickets_file50, stocks_file50, pr_file52, mean_var50)
-
     find_pareto(mean_var50, pareto50)
     create_mean_var_graphic(mean_var50, pareto50)
-
     num_assets = len(pd.read_excel(pr_file52).columns)
-
     calculate_cov(pr_file52, cov_file)
 
-    minimize_risk_with_short_sales(cov_file, portfolio_short_file)
-    weights_short = pd.read_excel(portfolio_short_file)[0]
-    port_return_short, port_vol_short, sharpe_short = portfolio(weights_short, pr_file52)
-    create_bar_graph_weight(weights_short)
+    minimize_risk_with_short_sales(cov_file, portfolio_min_risk_short_file)
+    weights_min_risk_short = pd.read_excel(portfolio_min_risk_short_file)[0]
+    port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short = portfolio(weights_min_risk_short, pr_file52)
+    print(port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short)
+    create_bar_graph_weight(weights_min_risk_short)
 
-    minimize_risk_without_short_sales(cov_file, portfolio_no_short_file)
-    weights_no_short = pd.read_excel(portfolio_no_short_file)[0]
-    port_return_no_short, port_vol_no_short, sharpe_no_short = portfolio(weights_no_short, pr_file52)
-    create_bar_graph_weight(weights_no_short)
+    minimize_risk_without_short_sales(cov_file, portfolio_min_risk_no_short_file)
+    weights_min_risk_no_short = pd.read_excel(portfolio_min_risk_no_short_file)[0]
+    port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short = portfolio(weights_min_risk_no_short, pr_file52)
+    print(port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short)
+    create_bar_graph_weight(weights_min_risk_no_short)
 
-    create_bar_graph_risks(port_vol_no_short, port_vol_short)
-    create_portfolio_graph(port_vol_short, port_return_short, port_vol_no_short, port_return_no_short)
+    create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
+    create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short, port_min_risk_return_no_short)
 
-    '''
-    optimal_weights_short, risk_short, mean_short = portfolio_with_minimal_risk_short(cov_file)
-    create_bar_graph_weight(optimal_weights_short)
-    optimal_weights_no_short, risk_no_short, mean_no_short = portfolio_with_minimal_risk_no_short(cov_file)
-    create_bar_graph_weight(optimal_weights_no_short)
-    create_bar_graph_risks(risk_no_short, risk_short)
-    create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short)
-    '''
+# до этого момента все збс
+
+    #find_min_max_portfolio_return_short(cov_file,min_max_portfolio_return_short_file)
+    #efficient_frontier_short(cov_file,eff_front_short_file,pr_file52,min_max_portfolio_return_short_file)
+
