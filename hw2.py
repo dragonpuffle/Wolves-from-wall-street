@@ -238,15 +238,15 @@ def efficient_frontier(cov_file, mv_file):
     plt.legend(['Короткие продажи запрещены', 'no short assets'])
     plt.show()
 
-def efficient_frontier_4num(cov_file, mv_file,returns_file,weights1_file,weights2_file):
+
+def efficient_frontier_4num(cov_file, mv_file, returns_file, weights1_file, weights2_file):
     returns = pd.read_excel(mv_file)
     cov = pd.read_excel(cov_file)
     fig, ax = plt.subplots()
     ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
     plotting.plot_efficient_frontier(ef, ax=ax, ef_param_range=np.linspace(0.00, 0.006, 100), c='blue', )
 
-
-    weights1=pd.read_excel(weights1_file)['weights']
+    weights1 = pd.read_excel(weights1_file)['weights']
     port_return, port_vol, sharpe = portfolio(weights1, returns_file)
     ax.scatter(
         port_vol,
@@ -259,7 +259,6 @@ def efficient_frontier_4num(cov_file, mv_file,returns_file,weights1_file,weights
 
     plt.legend(['Короткие продажи\nразрешены', 'short assets'])
     plt.show()
-
 
     fig, ax = plt.subplots()
     ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
@@ -470,32 +469,35 @@ def compare_efficient_frontiers(cov_file_50, mv_file_50, cov_file_10, mv_file_10
 
     plt.show()
 
-def value_at_risk(returns_file,weights,alpha=0.95,lookback_days=250,value_invested=1):
-    returns=pd.read_excel(returns_file)
-    returns = returns.fillna(0.0)
-    portfolio_returns=returns.iloc[-lookback_days].dot(weights)
-    return np.percentile(portfolio_returns, 100 * (1-alpha))*value_invested
 
-def cond_value_at_risk(returns_file,weights,alpha=0.95,lookback_days=250,value_invested=1):
-    var=value_at_risk(returns_file,weights,alpha,lookback_days,value_invested)
+def value_at_risk(returns_file, weights, alpha=0.95, lookback_days=250, value_invested=1):
+    returns = pd.read_excel(returns_file)
+    returns = returns.fillna(0.0)
+    portfolio_returns = returns.iloc[-lookback_days].dot(weights)
+    return np.percentile(portfolio_returns, 100 * (1 - alpha)) * value_invested
+
+
+def cond_value_at_risk(returns_file, weights, alpha=0.95, lookback_days=250, value_invested=1):
+    var = value_at_risk(returns_file, weights, alpha, lookback_days, value_invested)
     returns = pd.read_excel(returns_file)
     returns = returns.fillna(0.0)
     portfolio_returns = returns.iloc[-lookback_days:].dot(weights)
     var_pct_loss = var / value_invested
     return np.nanmean(portfolio_returns[portfolio_returns < var_pct_loss]) * value_invested
 
-def show_var_cvar_graph(returns_file,weights,alpha=0.95,lookback_days=250,value_invested=1):
-    returns=pd.read_excel(returns_file)
-    #print("Shape of returns:", returns.shape)
-    #print("Shape of weights:", weights.shape)
+
+def show_var_cvar_graph(returns_file, weights, alpha=0.95, lookback_days=250, value_invested=1):
+    returns = pd.read_excel(returns_file)
+    # print("Shape of returns:", returns.shape)
+    # print("Shape of weights:", weights.shape)
     weights = weights.values.flatten()
-    #print(weights)
+    # print(weights)
     portfolio_returns = returns.fillna(0.0).iloc[-lookback_days:].dot(weights)
 
-    portfolio_VaR = value_at_risk(returns_file, weights,alpha,lookback_days,value_invested)
+    portfolio_VaR = value_at_risk(returns_file, weights, alpha, lookback_days, value_invested)
     portfolio_VaR_return = portfolio_VaR / value_invested
 
-    portfolio_CVaR = cond_value_at_risk(returns_file, weights,alpha,lookback_days,value_invested)
+    portfolio_CVaR = cond_value_at_risk(returns_file, weights, alpha, lookback_days, value_invested)
     portfolio_CVaR_return = portfolio_CVaR / value_invested
 
     plt.hist(portfolio_returns[portfolio_returns > portfolio_VaR_return], bins=20)
@@ -508,7 +510,8 @@ def show_var_cvar_graph(returns_file,weights,alpha=0.95,lookback_days=250,value_
     plt.ylabel('Observation Frequency')
     plt.show()
 
-def opt_port_with_risk_aversion_short(cov_file, mv_file, port_risk_av_short_file,risk_aversion=1):
+
+def opt_port_with_risk_aversion_short(cov_file, mv_file, port_risk_av_short_file, risk_aversion=1):
     if not os.path.exists(port_risk_av_short_file) or os.stat(port_risk_av_short_file).st_size == 0:
         returns = pd.read_excel(mv_file)
         cov = pd.read_excel(cov_file)
@@ -520,7 +523,8 @@ def opt_port_with_risk_aversion_short(cov_file, mv_file, port_risk_av_short_file
         res['weights'] = weights
         res.to_excel(port_risk_av_short_file)
 
-def opt_port_with_risk_aversion_no_short(cov_file, mv_file, port_risk_av_no_short_file,risk_aversion=1):
+
+def opt_port_with_risk_aversion_no_short(cov_file, mv_file, port_risk_av_no_short_file, risk_aversion=1):
     if not os.path.exists(port_risk_av_no_short_file) or os.stat(port_risk_av_no_short_file).st_size == 0:
         returns = pd.read_excel(mv_file)
         cov = pd.read_excel(cov_file)
@@ -531,6 +535,7 @@ def opt_port_with_risk_aversion_no_short(cov_file, mv_file, port_risk_av_no_shor
         res['ticket'] = returns['Название акции']
         res['weights'] = weights
         res.to_excel(port_risk_av_no_short_file)
+
 
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
@@ -614,17 +619,17 @@ if __name__ == '__main__':
     #
     # compare_efficient_frontiers(cov_file50, mean_var50, cov_file10, mean_var10)
 
-    #4. Risk aversion
-    #вместо этого файла нужны weights нашего портфеля
-    port_risk_av_short_file='data2/port_risk_av_short.xlsx'
+    # 4. Risk aversion
+    # вместо этого файла нужны weights нашего портфеля
+    port_risk_av_short_file = 'data2/port_risk_av_short.xlsx'
     port_risk_av_no_short_file = 'data2/port_risk_av_no_short.xlsx'
 
-    opt_port_with_risk_aversion_short(cov_file50,mean_var50,port_risk_av_short_file,0.3)
-    weights_short=pd.read_excel(port_risk_av_short_file)['weights']
-    show_var_cvar_graph(pr_file50,weights_short)
+    opt_port_with_risk_aversion_short(cov_file50, mean_var50, port_risk_av_short_file, 0.3)
+    weights_short = pd.read_excel(port_risk_av_short_file)['weights']
+    show_var_cvar_graph(pr_file50, weights_short)
 
-    opt_port_with_risk_aversion_no_short(cov_file50,mean_var50,port_risk_av_no_short_file,0.3)
-    weights_no_short=pd.read_excel(port_risk_av_no_short_file)['weights']
-    show_var_cvar_graph(pr_file50,weights_no_short)
+    opt_port_with_risk_aversion_no_short(cov_file50, mean_var50, port_risk_av_no_short_file, 0.3)
+    weights_no_short = pd.read_excel(port_risk_av_no_short_file)['weights']
+    show_var_cvar_graph(pr_file50, weights_no_short)
 
-    efficient_frontier_4num(cov_file50,mean_var50,pr_file50,port_risk_av_short_file,port_risk_av_no_short_file)
+    efficient_frontier_4num(cov_file50, mean_var50, pr_file50, port_risk_av_short_file, port_risk_av_no_short_file)
