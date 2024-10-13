@@ -619,11 +619,11 @@ if __name__ == '__main__':
     port_risk_av_short_file='data2/port_risk_av_short.xlsx'
     port_risk_av_no_short_file = 'data2/port_risk_av_no_short.xlsx'
 
-    opt_port_with_risk_aversion_short(cov_file50,mean_var50,port_risk_av_short_file,50)
+    opt_port_with_risk_aversion_short(cov_file50,mean_var50,port_risk_av_short_file,0.3)
     weights_short=pd.read_excel(port_risk_av_short_file)['weights']
     show_var_cvar_graph(pr_file50,weights_short)
 
-    opt_port_with_risk_aversion_no_short(cov_file50,mean_var50,port_risk_av_no_short_file,50)
+    opt_port_with_risk_aversion_no_short(cov_file50,mean_var50,port_risk_av_no_short_file,0.3)
     weights_no_short=pd.read_excel(port_risk_av_no_short_file)['weights']
     show_var_cvar_graph(pr_file50,weights_no_short)
 
