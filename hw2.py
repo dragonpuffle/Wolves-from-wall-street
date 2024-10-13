@@ -238,6 +238,47 @@ def efficient_frontier(cov_file, mv_file):
     plt.legend(['Короткие продажи запрещены', 'no short assets'])
     plt.show()
 
+def efficient_frontier_4num(cov_file, mv_file,returns_file,weights1_file,weights2_file):
+    returns = pd.read_excel(mv_file)
+    cov = pd.read_excel(cov_file)
+    fig, ax = plt.subplots()
+    ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
+    plotting.plot_efficient_frontier(ef, ax=ax, ef_param_range=np.linspace(0.00, 0.006, 100), c='blue', )
+
+
+    weights1=pd.read_excel(weights1_file)['weights']
+    port_return, port_vol, sharpe = portfolio(weights1, returns_file)
+    ax.scatter(
+        port_vol,
+        port_return,
+        marker='o',
+        color='purple',
+        s=80,  # Размер маркера
+        label='with risk aversion'
+    )
+
+    plt.legend(['Короткие продажи\nразрешены', 'short assets'])
+    plt.show()
+
+
+    fig, ax = plt.subplots()
+    ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
+    plotting.plot_efficient_frontier(ef, ax=ax, c='green')
+
+    weights2 = pd.read_excel(weights2_file)['weights']
+    port_return, port_vol, sharpe = portfolio(weights2, returns_file)
+    ax.scatter(
+        port_vol,
+        port_return,
+        marker='o',
+        color='purple',
+        s=80,  # Размер маркера
+        label='with risk aversion'
+    )
+
+    plt.legend(['Короткие продажи запрещены', 'no short assets'])
+    plt.show()
+
 
 def compare_efficient_frontiers_50_short_vs_no_short(cov_file_50, mv_file_50, returns_file):
     # Загружаем данные для полного набора акций (50 акций)
@@ -467,6 +508,30 @@ def show_var_cvar_graph(returns_file,weights,alpha=0.95,lookback_days=250,value_
     plt.ylabel('Observation Frequency')
     plt.show()
 
+def opt_port_with_risk_aversion_short(cov_file, mv_file, port_risk_av_short_file,risk_aversion=1):
+    if not os.path.exists(port_risk_av_short_file) or os.stat(port_risk_av_short_file).st_size == 0:
+        returns = pd.read_excel(mv_file)
+        cov = pd.read_excel(cov_file)
+        ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
+        minvol = ef.max_quadratic_utility(risk_aversion=risk_aversion)
+        weights = ef.clean_weights()
+        res = pd.DataFrame()
+        res['ticket'] = returns['Название акции']
+        res['weights'] = weights
+        res.to_excel(port_risk_av_short_file)
+
+def opt_port_with_risk_aversion_no_short(cov_file, mv_file, port_risk_av_no_short_file,risk_aversion=1):
+    if not os.path.exists(port_risk_av_no_short_file) or os.stat(port_risk_av_no_short_file).st_size == 0:
+        returns = pd.read_excel(mv_file)
+        cov = pd.read_excel(cov_file)
+        ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
+        minvol = ef.max_quadratic_utility(risk_aversion=risk_aversion)
+        weights = ef.clean_weights()
+        res = pd.DataFrame()
+        res['ticket'] = returns['Название акции']
+        res['weights'] = weights
+        res.to_excel(port_risk_av_no_short_file)
+
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
     tickets_file = 'data2/tickets.txt'
@@ -551,5 +616,15 @@ if __name__ == '__main__':
 
     #4. Risk aversion
     #вместо этого файла нужны weights нашего портфеля
-    weights=pd.read_excel(portfolio_min_risk_short_file)[0]
-    show_var_cvar_graph(pr_file50,weights)
+    port_risk_av_short_file='data2/port_risk_av_short.xlsx'
+    port_risk_av_no_short_file = 'data2/port_risk_av_no_short.xlsx'
+
+    opt_port_with_risk_aversion_short(cov_file50,mean_var50,port_risk_av_short_file,50)
+    weights_short=pd.read_excel(port_risk_av_short_file)['weights']
+    show_var_cvar_graph(pr_file50,weights_short)
+
+    opt_port_with_risk_aversion_no_short(cov_file50,mean_var50,port_risk_av_no_short_file,50)
+    weights_no_short=pd.read_excel(port_risk_av_no_short_file)['weights']
+    show_var_cvar_graph(pr_file50,weights_no_short)
+
+    efficient_frontier_4num(cov_file50,mean_var50,pr_file50,port_risk_av_short_file,port_risk_av_no_short_file)
