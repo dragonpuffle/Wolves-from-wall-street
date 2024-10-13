@@ -155,7 +155,7 @@ def create_portfolios_graph(eff_front_file):
     plt.colorbar(label='Sharpe ratio (not adjusted for short rate)')
 
 
-def create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short):
+def create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short,returns_file):
     fig, ax = plt.subplots()
     ax.scatter(
         risk_short,
@@ -174,6 +174,22 @@ def create_portfolio_graph(risk_short, mean_short, risk_no_short, mean_no_short)
         s=80,
         label='no_short'
     )
+
+    #ТОЧКА ОЧЕНЬ ДАЛЕКО
+    returns=pd.read_excel(returns_file)
+    num_assets = len(returns.columns)
+    weights = np.ones(num_assets) / num_assets
+    print(weights)
+    port_return, port_vol, sharpe=portfolio(weights,returns_file)
+    ax.scatter(
+        port_vol,
+        port_return,
+        marker='o',
+        color='purple',
+        s=80,  # Размер маркера
+        label='Равные доли вложения'
+    )
+
     plt.title('Сравнение портфелей')
     plt.legend()
     plt.ylabel('mean')
@@ -370,7 +386,7 @@ def compare_efficient_frontiers(cov_file_50, mv_file_50, cov_file_10, mv_file_10
     plt.show()
 
 
-def compare_efficient_frontiers_50_short_vs_no_short(cov_file_50, mv_file_50):
+def compare_efficient_frontiers_50_short_vs_no_short(cov_file_50, mv_file_50,returns_file):
     # Загружаем данные для полного набора акций (50 акций)
     returns_full = pd.read_excel(mv_file_50)
     cov_full = pd.read_excel(cov_file_50)
@@ -386,6 +402,20 @@ def compare_efficient_frontiers_50_short_vs_no_short(cov_file_50, mv_file_50):
     ef_50_no_short = plot_efficient_frontier(returns_full['Мат ожидание'], cov_full, color='green',
                                              label='50 акций (Короткие продажи запрещены)', ax=ax, weight_bounds=(0, 1))
     plot_stocks(returns_full, cov_full, ax, color='green')  # Точки для 50 акций
+
+    # #ТОЧКА ОЧЕНЬ ДАЛЕКО
+    # num_assets = len(cov_full)
+    # weights = np.ones(num_assets) / num_assets
+    # print(weights)
+    # port_return, port_vol, sharpe=portfolio(weights,returns_file)
+    # ax.scatter(
+    #     port_vol,
+    #     port_return,
+    #     marker='o',
+    #     color='purple',
+    #     s=80,  # Размер маркера
+    #     label='Равные доли вложения'
+    # )
 
     plt.title('Эффективные фронты (50 акций): Сравнение коротких продаж')
     plt.xlabel('Риск (стандартное отклонение)')
@@ -447,14 +477,14 @@ if __name__ == '__main__':
 
     create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
     create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short,
-                           port_min_risk_return_no_short)
+                           port_min_risk_return_no_short,pr_file50)
 
     # вычисляем эффективный фронт
     efficient_frontier_short(cov_file50, mean_var50, ef_short_file50)
     efficient_frontier_no_short(cov_file50, mean_var50, ef_no_short_file50)
 
     efficient_frontier(cov_file50, mean_var50)
-    compare_efficient_frontiers_50_short_vs_no_short(cov_file50,mean_var50)
+    compare_efficient_frontiers_50_short_vs_no_short(cov_file50,mean_var50,pr_file50) #для задания с равными долями надо раскоментить одну точку (в юпитере можно и вывести значения mean var sharp)
 
     tickets_file10 = 'data2/tickets10.txt'
     stocks_file10 = 'data2/stocks10.xlsx'
