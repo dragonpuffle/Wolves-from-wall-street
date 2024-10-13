@@ -1,3 +1,4 @@
+import pandas as pd
 import scipy.optimize as optimize
 from pypfopt import plotting
 from pypfopt.efficient_frontier import EfficientFrontier  # pip install pyportfolioopt
@@ -430,6 +431,94 @@ def compare_efficient_frontiers(cov_file_50, mv_file_50, cov_file_10, mv_file_10
     plt.show()
 
 
+def sharpe_ratio(weights, returns_file, cov_file, risk_free_rate=0.01):
+    returns = pd.read_excel(returns_file)['Мат ожидание'].values  # Ожидаемые доходности активов
+    cov_matrix = pd.read_excel(cov_file).values  # Ковариационная матрица
+
+    weights = np.array(weights)
+
+    # Ожидаемая доходность портфеля
+    portfolio_return = np.sum(weights * returns)
+
+    # Риск портфеля (стандартное отклонение)
+    portfolio_volatility = np.sqrt(np.dot(weights.T, np.dot(cov_matrix, weights)))
+
+    # Коэффициент Шарпа
+    sharpe = (portfolio_return - risk_free_rate) / portfolio_volatility
+    return -sharpe  # Возвращаем отрицательное значение для минимизации
+
+
+def maximize_sharpe_with_short_sales(mv_file, cov_file, portfolio_sharpe_file, risk_free_rate=0.01):
+    if not os.path.exists(portfolio_sharpe_file) or os.stat(portfolio_sharpe_file).st_size == 0:
+        returns_df = pd.read_excel(mv_file)
+        returns_file = mv_file
+        cov_matrix = pd.read_excel(cov_file)
+        num_assets = cov_matrix.shape[0]
+
+        # Условия: сумма весов = 1
+        constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+        # Границы: разрешены короткие продажи
+        bounds = tuple((-1, 1) for asset in range(num_assets))
+        # Начальные веса
+        initializer = num_assets * [1. / num_assets, ]
+
+        # Оптимизация с целью максимизировать коэффициент Шарпа
+        result = minimize(sharpe_ratio, initializer, args=(returns_file, cov_file, risk_free_rate),
+                          method='SLSQP', bounds=bounds, constraints=constraints)
+
+        # Сохранение результатов
+        res = pd.DataFrame(result.x)
+        res.to_excel(portfolio_sharpe_file, index=False)
+
+
+def maximize_sharpe_without_short_sales(mv_file, cov_file, portfolio_sharpe_file, risk_free_rate=0.01):
+    returns_df = pd.read_excel(mv_file)
+    returns_file = mv_file
+    cov_matrix = pd.read_excel(cov_file)
+    num_assets = cov_matrix.shape[0]
+
+    # Условия: сумма весов = 1
+    constraints = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
+    # Границы: запрещены короткие продажи
+    bounds = tuple((0, 1) for asset in range(num_assets))
+    # Начальные веса
+    initializer = num_assets * [1. / num_assets, ]
+
+    # Оптимизация с целью максимизировать коэффициент Шарпа
+    result = minimize(sharpe_ratio, initializer, args=(returns_file, cov_file, risk_free_rate),
+                      method='SLSQP', bounds=bounds, constraints=constraints)
+
+    # Сохранение результатов
+    res = pd.DataFrame(result.x)
+    res.to_excel(portfolio_sharpe_file, index=False)
+
+
+def efficient_frontier_short_sharp(cov_file, mv_file, ef_short_file):
+    if not os.path.exists(ef_short_file) or os.stat(ef_short_file).st_size == 0:
+        returns = pd.read_excel(mv_file)
+        cov = pd.read_excel(cov_file)
+        ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
+        minvol = ef.max_sharpe()
+        weights = ef.clean_weights()
+        res = pd.DataFrame()
+        res['ticket'] = returns['Название акции']
+        res['weights'] = weights
+        res.to_excel(ef_short_file)
+
+
+def efficient_frontier_no_short_sharp(cov_file, mv_file, ef_no_short_file):
+    if not os.path.exists(ef_no_short_file) or os.stat(ef_no_short_file).st_size == 0:
+        returns = pd.read_excel(mv_file)
+        cov = pd.read_excel(cov_file)
+        ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
+        minvol = ef.max_sharpe()
+        weights = ef.clean_weights()
+        res = pd.DataFrame()
+        res['ticket'] = returns['Название акции']
+        res['weights'] = weights
+        res.to_excel(ef_no_short_file)
+
+
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
     tickets_file = 'data2/tickets.txt'
@@ -452,42 +541,42 @@ if __name__ == '__main__':
     ef_no_short_file50 = 'data2/ef_no_short.xlsx'
 
     # 1. Portfolio with minimal risk
-    download_data(URL, tickets_file, stocks_file)
-    profitability(stocks_file, pr_file2)
-    calculate_mean_var(pr_file2, mean_var)
-
-    find_50stocks(stocks_file, pr_file2, mean_var, tickets_file50, stocks_file50, pr_file50, mean_var50)
-    find_pareto(mean_var50, pareto50)
-    create_mean_var_graphic(mean_var50, pareto50)
-    num_assets = len(pd.read_excel(pr_file50).columns)
-    calculate_cov(pr_file50, cov_file50)
-
-    # портфель с минимальным риском с разрешением коротких продаж
-    minimize_risk_with_short_sales(cov_file50, portfolio_min_risk_short_file)
-    weights_min_risk_short = pd.read_excel(portfolio_min_risk_short_file)[0]
-    port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short = portfolio(weights_min_risk_short,
-                                                                                           pr_file50)
-    create_bar_graph_weight(weights_min_risk_short)
-
-    # портфель с минимальным риском с запретом коротких продаж
-    minimize_risk_without_short_sales(cov_file50, portfolio_min_risk_no_short_file)
-    weights_min_risk_no_short = pd.read_excel(portfolio_min_risk_no_short_file)[0]
-    port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short = portfolio(
-        weights_min_risk_no_short, pr_file50)
-    create_bar_graph_weight(weights_min_risk_no_short)
-
-    create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
-    create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short,
-                           port_min_risk_return_no_short, pr_file50)
+    # download_data(URL, tickets_file, stocks_file)
+    # profitability(stocks_file, pr_file2)
+    # calculate_mean_var(pr_file2, mean_var)
+    #
+    # find_50stocks(stocks_file, pr_file2, mean_var, tickets_file50, stocks_file50, pr_file50, mean_var50)
+    # find_pareto(mean_var50, pareto50)
+    # create_mean_var_graphic(mean_var50, pareto50)
+    # num_assets = len(pd.read_excel(pr_file50).columns)
+    # calculate_cov(pr_file50, cov_file50)
+    #
+    # # портфель с минимальным риском с разрешением коротких продаж
+    # minimize_risk_with_short_sales(cov_file50, portfolio_min_risk_short_file)
+    # weights_min_risk_short = pd.read_excel(portfolio_min_risk_short_file)[0]
+    # port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short = portfolio(weights_min_risk_short,
+    #                                                                                        pr_file50)
+    # create_bar_graph_weight(weights_min_risk_short)
+    #
+    # # портфель с минимальным риском с запретом коротких продаж
+    # minimize_risk_without_short_sales(cov_file50, portfolio_min_risk_no_short_file)
+    # weights_min_risk_no_short = pd.read_excel(portfolio_min_risk_no_short_file)[0]
+    # port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short = portfolio(
+    #     weights_min_risk_no_short, pr_file50)
+    # create_bar_graph_weight(weights_min_risk_no_short)
+    #
+    # create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
+    # create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short,
+    #                        port_min_risk_return_no_short, pr_file50)
 
     # 2. Efficient frontier
-    # вычисляем эффективный фронт
-    efficient_frontier_short(cov_file50, mean_var50, ef_short_file50)
-    efficient_frontier_no_short(cov_file50, mean_var50, ef_no_short_file50)
-
-    efficient_frontier(cov_file50, mean_var50)
-    compare_efficient_frontiers_50_short_vs_no_short(cov_file50, mean_var50,
-                                                     pr_file50)  # для задания с равными долями надо раскоментить одну точку (в юпитере можно и вывести значения mean var sharp)
+    # # вычисляем эффективный фронт
+    # efficient_frontier_short(cov_file50, mean_var50, ef_short_file50)
+    # efficient_frontier_no_short(cov_file50, mean_var50, ef_no_short_file50)
+    #
+    # efficient_frontier(cov_file50, mean_var50)
+    # compare_efficient_frontiers_50_short_vs_no_short(cov_file50, mean_var50,
+    #                                                  pr_file50)  # для задания с равными долями надо раскоментить одну точку (в юпитере можно и вывести значения mean var sharp)
 
     # 3. Portfolio selection problem
     tickets_file10 = 'data2/tickets10.txt'
@@ -500,16 +589,26 @@ if __name__ == '__main__':
     ef_short_file10 = 'data2/ef_short.xlsx'
     ef_no_short_file10 = 'data2/ef_no_short.xlsx'
 
-    find_10stocks(tickets_file10, mean_var50, stocks_file50, pr_file50, stocks_file10, pr_file10, mean_var10,
-                  cov_file50)
+    # find_10stocks(tickets_file10, mean_var50, stocks_file50, pr_file50, stocks_file10, pr_file10, mean_var10,
+    #               cov_file50)
+    #
+    # calculate_cov(pr_file10, cov_file10)
+    #
+    # efficient_frontier_short(cov_file10, mean_var10, ef_short_file10)
+    # efficient_frontier_no_short(cov_file10, mean_var10, ef_no_short_file10)
+    #
+    # efficient_frontier(cov_file10, mean_var10)
+    #
+    # compare_efficient_frontiers(cov_file50, mean_var50, cov_file10, mean_var10)
 
-    calculate_cov(pr_file10, cov_file10)
+    # 4. Risk aversion
+    opt_sharpe_short = 'data2/optimal_portfolio_sharpe_short.xlsx'
+    opt_sharpe_no_short = 'data2/optimal_portfolio_sharpe_no_short.xlsx'
 
-    efficient_frontier_short(cov_file10, mean_var10, ef_short_file10)
-    efficient_frontier_no_short(cov_file10, mean_var10, ef_no_short_file10)
+    maximize_sharpe_with_short_sales(mean_var50, cov_file50, opt_sharpe_short)
+    maximize_sharpe_without_short_sales(mean_var50, cov_file50, opt_sharpe_no_short)
 
-    efficient_frontier(cov_file10, mean_var10)
-
-    compare_efficient_frontiers(cov_file50, mean_var50, cov_file10, mean_var10)
-
-    #4. Risk aversion
+    ef_short_file_sharp = 'data2/ef_short_sharp.xlsx'
+    ef_no_short_file_sharp = 'data2/ef_no_short_sharp.xlsx'
+    efficient_frontier_short_sharp(cov_file50, mean_var50, ef_short_file_sharp)
+    efficient_frontier_no_short_sharp(cov_file50, mean_var50, ef_no_short_file_sharp)
