@@ -78,46 +78,49 @@ def delete_null_columns(file):
 
 
 def profitability(file_in, file_out):
-    data = pd.read_excel(file_in)
-    for i in range(len(data.columns)):
-        data.iloc[:, i] = np.log1p(data.iloc[:, i].pct_change())
-    data.to_excel(file_out, index=False)
+    if not os.path.exists(file_out) or os.stat(file_out).st_size == 0:
+        data = pd.read_excel(file_in)
+        for i in range(len(data.columns)):
+            data.iloc[:, i] = np.log1p(data.iloc[:, i].pct_change())
+        data.to_excel(file_out, index=False)
 
 
 def calculate_mean_var(file_in, file_out):
-    df = pd.read_excel(file_in)
-    result = []
+    if not os.path.exists(file_out) or os.stat(file_out).st_size == 0:
+        df = pd.read_excel(file_in)
+        result = []
 
-    for column in df.columns[1:]:
-        stock_name = df[column].name
-        mean = np.mean(df[column])  # Математическое ожидание
-        variance = np.var(df[column])  # Дисперсия
+        for column in df.columns[1:]:
+            stock_name = df[column].name
+            mean = np.mean(df[column])  # Математическое ожидание
+            variance = np.var(df[column])  # Дисперсия
 
-        result.append({
-            'Название акции': stock_name,
-            'Мат ожидание': mean,
-            'Дисперсия': variance})
+            result.append({
+                'Название акции': stock_name,
+                'Мат ожидание': mean,
+                'Дисперсия': variance})
 
-    result_df = pd.DataFrame(result)
+        result_df = pd.DataFrame(result)
 
-    result_df.to_excel(file_out, index=False)
+        result_df.to_excel(file_out, index=False)
 
 
 def find_pareto(xlsx_file_in, xlx_file_out):
-    data = pd.read_excel(xlsx_file_in)
-    data = data.sort_values(by=['Мат ожидание', 'Дисперсия'], ascending=False).reset_index(drop=True)
-    pareto_stocks = []
-    previous_var = 100
-    for index, stock in data.iterrows():
-        if stock['Дисперсия'] <= previous_var and stock['Мат ожидание'] > 0:
-            pareto_stocks.append({
-                'Название акции': stock['Название акции'],
-                'Мат ожидание': stock['Мат ожидание'],
-                'Дисперсия': stock['Дисперсия']})
-            previous_var = stock['Дисперсия']
+    if not os.path.exists(xlx_file_out) or os.stat(xlx_file_out).st_size == 0:
+        data = pd.read_excel(xlsx_file_in)
+        data = data.sort_values(by=['Мат ожидание', 'Дисперсия'], ascending=False).reset_index(drop=True)
+        pareto_stocks = []
+        previous_var = 100
+        for index, stock in data.iterrows():
+            if stock['Дисперсия'] <= previous_var and stock['Мат ожидание'] > 0:
+                pareto_stocks.append({
+                    'Название акции': stock['Название акции'],
+                    'Мат ожидание': stock['Мат ожидание'],
+                    'Дисперсия': stock['Дисперсия']})
+                previous_var = stock['Дисперсия']
 
-    # save_names_to_file(pareto_stocks, txt_file_out)
-    pd.DataFrame(pareto_stocks).to_excel(xlx_file_out, index=False)
+        # save_names_to_file(pareto_stocks, txt_file_out)
+        pd.DataFrame(pareto_stocks).to_excel(xlx_file_out, index=False)
 
 
 def calculate_historical_var(xlsx_file_in, pareto_file_in, xlsx_file_out):
@@ -331,8 +334,8 @@ if __name__ == '__main__':
     if not os.path.exists(mv_file) or os.stat(mv_file).st_size == 0:
         calculate_mean_var(pr_file, mv_file)
 
-    if not os.path.exists(pareto_file) or os.stat(pareto_file).st_size == 0:
-        find_pareto(mv_file, pareto_file)
+
+    find_pareto(mv_file, pareto_file)
 
     if not os.path.exists(vars_file) or os.stat(vars_file).st_size == 0:
         calculate_historical_var(pr_file, pareto_file, vars_file)
