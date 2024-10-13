@@ -261,7 +261,7 @@ def portfolio_optimization(mean_returns, cov_matrix, target_return):
     constraints = ({'type': 'eq', 'fun': lambda weights: np.sum(weights) - 1},
                    {'type': 'eq', 'fun': lambda weights: np.dot(weights, mean_returns) - target_return})
 
-    bounds = tuple((0, 1) for asset in range(num_assets))
+    bounds = tuple((-1, 1) for asset in range(num_assets))
 
     result = minimize(portfolio_volatility, weights, method='SLSQP', bounds=bounds, constraints=constraints)
 
@@ -315,11 +315,9 @@ def plot_stocks(returns, cov, ax, color):
 
 
 def compare_efficient_frontiers(cov_file_50, mv_file_50, cov_file_10, mv_file_10):
-    # Загружаем данные для полного набора акций (50 акций)
     returns_full = pd.read_excel(mv_file_50)
     cov_full = pd.read_excel(cov_file_50)
 
-    # Загружаем данные для выбранного набора активов (10 акций)
     returns_selected = pd.read_excel(mv_file_10)
     cov_selected = pd.read_excel(cov_file_10)
 
@@ -339,12 +337,10 @@ def compare_efficient_frontiers(cov_file_50, mv_file_50, cov_file_10, mv_file_10
     plt.xlabel('Риск (стандартное отклонение)')
     plt.ylabel('Ожидаемая доходность')
 
-    # Обновленная легенда
     lines = [plt.Line2D([0], [0], color='blue', lw=2),
              plt.Line2D([0], [0], color='green', lw=2)]
     plt.legend(lines, ['Эффективный фронт (50 акций)', 'Эффективный фронт (10 акций)'], title='Набор активов',
                loc='upper left')
-
     plt.show()
 
     fig, ax = plt.subplots()
@@ -363,10 +359,8 @@ def compare_efficient_frontiers(cov_file_50, mv_file_50, cov_file_10, mv_file_10
     plt.xlabel('Риск (стандартное отклонение)')
     plt.ylabel('Ожидаемая доходность')
 
-    # Обновленная легенда
     plt.legend(lines, ['Эффективный фронт (50 акций)', 'Эффективный фронт (10 акций)'], title='Набор активов',
                loc='upper left')
-
     plt.show()
 
 
@@ -400,7 +394,7 @@ if __name__ == '__main__':
     # create_mean_var_graphic(mean_var50, pareto50)
     num_assets = len(pd.read_excel(pr_file50).columns)
     calculate_cov(pr_file50, cov_file50)
-    #
+
     # # портфель с минимальным риском с разрешением коротких продаж
     # minimize_risk_with_short_sales(cov_file50, portfolio_min_risk_short_file)
     # weights_min_risk_short = pd.read_excel(portfolio_min_risk_short_file)[0]
