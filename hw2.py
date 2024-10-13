@@ -1,3 +1,4 @@
+import pandas as pd
 import scipy.optimize as optimize
 from pypfopt import plotting
 from pypfopt.efficient_frontier import EfficientFrontier  # pip install pyportfolioopt
@@ -258,7 +259,6 @@ def compare_efficient_frontiers_50_short_vs_no_short(cov_file_50, mv_file_50, re
     # ТОЧКА ОЧЕНЬ ДАЛЕКО
     num_assets = len(cov_full)
     weights = np.ones(num_assets) / num_assets
-    print(weights)
     port_return, port_vol, sharpe = portfolio(weights, returns_file)
     ax.scatter(
         port_vol,
@@ -429,6 +429,43 @@ def compare_efficient_frontiers(cov_file_50, mv_file_50, cov_file_10, mv_file_10
 
     plt.show()
 
+def value_at_risk(returns_file,weights,alpha=0.95,lookback_days=250,value_invested=1):
+    returns=pd.read_excel(returns_file)
+    returns = returns.fillna(0.0)
+    portfolio_returns=returns.iloc[-lookback_days].dot(weights)
+    return np.percentile(portfolio_returns, 100 * (1-alpha))*value_invested
+
+def cond_value_at_risk(returns_file,weights,alpha=0.95,lookback_days=250,value_invested=1):
+    var=value_at_risk(returns_file,weights,alpha,lookback_days,value_invested)
+    returns = pd.read_excel(returns_file)
+    returns = returns.fillna(0.0)
+    portfolio_returns = returns.iloc[-lookback_days:].dot(weights)
+    var_pct_loss = var / value_invested
+    return np.nanmean(portfolio_returns[portfolio_returns < var_pct_loss]) * value_invested
+
+def show_var_cvar_graph(returns_file,weights,alpha=0.95,lookback_days=250,value_invested=1):
+    returns=pd.read_excel(returns_file)
+    #print("Shape of returns:", returns.shape)
+    #print("Shape of weights:", weights.shape)
+    weights = weights.values.flatten()
+    #print(weights)
+    portfolio_returns = returns.fillna(0.0).iloc[-lookback_days:].dot(weights)
+
+    portfolio_VaR = value_at_risk(returns_file, weights,alpha,lookback_days,value_invested)
+    portfolio_VaR_return = portfolio_VaR / value_invested
+
+    portfolio_CVaR = cond_value_at_risk(returns_file, weights,alpha,lookback_days,value_invested)
+    portfolio_CVaR_return = portfolio_CVaR / value_invested
+
+    plt.hist(portfolio_returns[portfolio_returns > portfolio_VaR_return], bins=20)
+    plt.hist(portfolio_returns[portfolio_returns < portfolio_VaR_return], bins=10)
+    plt.axvline(portfolio_VaR_return, color='red', linestyle='solid')
+    plt.axvline(portfolio_CVaR_return, color='red', linestyle='dashed')
+    plt.legend(['VaR', 'CVaR', 'Returns', 'Returns < VaR'])
+    plt.title('Historical VaR and CVaR')
+    plt.xlabel('Return')
+    plt.ylabel('Observation Frequency')
+    plt.show()
 
 if __name__ == '__main__':
     URL = 'https://ru.tradingview.com/symbols/NASDAQ-NDX/components/'
@@ -451,65 +488,68 @@ if __name__ == '__main__':
     ef_short_file50 = 'data2/ef_short.xlsx'
     ef_no_short_file50 = 'data2/ef_no_short.xlsx'
 
-    # 1. Portfolio with minimal risk
-    download_data(URL, tickets_file, stocks_file)
-    profitability(stocks_file, pr_file2)
-    calculate_mean_var(pr_file2, mean_var)
+    # # 1. Portfolio with minimal risk
+    # download_data(URL, tickets_file, stocks_file)
+    # profitability(stocks_file, pr_file2)
+    # calculate_mean_var(pr_file2, mean_var)
+    #
+    # find_50stocks(stocks_file, pr_file2, mean_var, tickets_file50, stocks_file50, pr_file50, mean_var50)
+    # find_pareto(mean_var50, pareto50)
+    # create_mean_var_graphic(mean_var50, pareto50)
+    # num_assets = len(pd.read_excel(pr_file50).columns)
+    # calculate_cov(pr_file50, cov_file50)
+    #
+    # # портфель с минимальным риском с разрешением коротких продаж
+    # minimize_risk_with_short_sales(cov_file50, portfolio_min_risk_short_file)
+    # weights_min_risk_short = pd.read_excel(portfolio_min_risk_short_file)[0]
+    # port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short = portfolio(weights_min_risk_short,
+    #                                                                                        pr_file50)
+    # create_bar_graph_weight(weights_min_risk_short)
+    #
+    # # портфель с минимальным риском с запретом коротких продаж
+    # minimize_risk_without_short_sales(cov_file50, portfolio_min_risk_no_short_file)
+    # weights_min_risk_no_short = pd.read_excel(portfolio_min_risk_no_short_file)[0]
+    # port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short = portfolio(
+    #     weights_min_risk_no_short, pr_file50)
+    # create_bar_graph_weight(weights_min_risk_no_short)
+    #
+    # create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
+    # create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short,
+    #                        port_min_risk_return_no_short, pr_file50)
 
-    find_50stocks(stocks_file, pr_file2, mean_var, tickets_file50, stocks_file50, pr_file50, mean_var50)
-    find_pareto(mean_var50, pareto50)
-    create_mean_var_graphic(mean_var50, pareto50)
-    num_assets = len(pd.read_excel(pr_file50).columns)
-    calculate_cov(pr_file50, cov_file50)
-
-    # портфель с минимальным риском с разрешением коротких продаж
-    minimize_risk_with_short_sales(cov_file50, portfolio_min_risk_short_file)
-    weights_min_risk_short = pd.read_excel(portfolio_min_risk_short_file)[0]
-    port_min_risk_return_short, port_min_risk_vol_short, sharpe_min_risk_short = portfolio(weights_min_risk_short,
-                                                                                           pr_file50)
-    create_bar_graph_weight(weights_min_risk_short)
-
-    # портфель с минимальным риском с запретом коротких продаж
-    minimize_risk_without_short_sales(cov_file50, portfolio_min_risk_no_short_file)
-    weights_min_risk_no_short = pd.read_excel(portfolio_min_risk_no_short_file)[0]
-    port_min_risk_return_no_short, port_min_risk_vol_no_short, sharpe_min_risk_no_short = portfolio(
-        weights_min_risk_no_short, pr_file50)
-    create_bar_graph_weight(weights_min_risk_no_short)
-
-    create_bar_graph_risks(port_min_risk_vol_no_short, port_min_risk_vol_short)
-    create_portfolio_graph(port_min_risk_vol_short, port_min_risk_return_short, port_min_risk_vol_no_short,
-                           port_min_risk_return_no_short, pr_file50)
-
-    # 2. Efficient frontier
-    # вычисляем эффективный фронт
-    efficient_frontier_short(cov_file50, mean_var50, ef_short_file50)
-    efficient_frontier_no_short(cov_file50, mean_var50, ef_no_short_file50)
-
-    efficient_frontier(cov_file50, mean_var50)
-    compare_efficient_frontiers_50_short_vs_no_short(cov_file50, mean_var50,
-                                                     pr_file50)  # для задания с равными долями надо раскоментить одну точку (в юпитере можно и вывести значения mean var sharp)
-
-    # 3. Portfolio selection problem
-    tickets_file10 = 'data2/tickets10.txt'
-    stocks_file10 = 'data2/stocks10.xlsx'
-    pr_file10 = 'data2/profitability10.xlsx'
-    mean_var10 = 'data2/mean_var10.xlsx'
-
-    cov_file10 = 'data2/cov_file10.xlsx'
-
-    ef_short_file10 = 'data2/ef_short.xlsx'
-    ef_no_short_file10 = 'data2/ef_no_short.xlsx'
-
-    find_10stocks(tickets_file10, mean_var50, stocks_file50, pr_file50, stocks_file10, pr_file10, mean_var10,
-                  cov_file50)
-
-    calculate_cov(pr_file10, cov_file10)
-
-    efficient_frontier_short(cov_file10, mean_var10, ef_short_file10)
-    efficient_frontier_no_short(cov_file10, mean_var10, ef_no_short_file10)
-
-    efficient_frontier(cov_file10, mean_var10)
-
-    compare_efficient_frontiers(cov_file50, mean_var50, cov_file10, mean_var10)
+    # # 2. Efficient frontier
+    # # вычисляем эффективный фронт
+    # efficient_frontier_short(cov_file50, mean_var50, ef_short_file50)
+    # efficient_frontier_no_short(cov_file50, mean_var50, ef_no_short_file50)
+    #
+    # efficient_frontier(cov_file50, mean_var50)
+    # compare_efficient_frontiers_50_short_vs_no_short(cov_file50, mean_var50,
+    #                                                  pr_file50)  # для задания с равными долями надо раскоментить одну точку (в юпитере можно и вывести значения mean var sharp)
+    #
+    # # 3. Portfolio selection problem
+    # tickets_file10 = 'data2/tickets10.txt'
+    # stocks_file10 = 'data2/stocks10.xlsx'
+    # pr_file10 = 'data2/profitability10.xlsx'
+    # mean_var10 = 'data2/mean_var10.xlsx'
+    #
+    # cov_file10 = 'data2/cov_file10.xlsx'
+    #
+    # ef_short_file10 = 'data2/ef_short.xlsx'
+    # ef_no_short_file10 = 'data2/ef_no_short.xlsx'
+    #
+    # find_10stocks(tickets_file10, mean_var50, stocks_file50, pr_file50, stocks_file10, pr_file10, mean_var10,
+    #               cov_file50)
+    #
+    # calculate_cov(pr_file10, cov_file10)
+    #
+    # efficient_frontier_short(cov_file10, mean_var10, ef_short_file10)
+    # efficient_frontier_no_short(cov_file10, mean_var10, ef_no_short_file10)
+    #
+    # efficient_frontier(cov_file10, mean_var10)
+    #
+    # compare_efficient_frontiers(cov_file50, mean_var50, cov_file10, mean_var10)
 
     #4. Risk aversion
+    #вместо этого файла нужны weights нашего портфеля
+    weights=pd.read_excel(portfolio_min_risk_short_file)[0]
+    show_var_cvar_graph(pr_file50,weights)
