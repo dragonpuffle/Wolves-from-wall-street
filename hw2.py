@@ -498,7 +498,7 @@ def efficient_frontier_short_sharp(cov_file, mv_file, ef_short_file):
         returns = pd.read_excel(mv_file)
         cov = pd.read_excel(cov_file)
         ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(-1, 1))
-        minvol = ef.max_sharpe()
+        minvol = ef.max_sharpe(risk_free_rate=0.001)
         weights = ef.clean_weights()
         res = pd.DataFrame()
         res['ticket'] = returns['Название акции']
@@ -511,7 +511,7 @@ def efficient_frontier_no_short_sharp(cov_file, mv_file, ef_no_short_file):
         returns = pd.read_excel(mv_file)
         cov = pd.read_excel(cov_file)
         ef = EfficientFrontier(returns['Мат ожидание'], cov, weight_bounds=(0, 1))
-        minvol = ef.max_sharpe()
+        minvol = ef.max_sharpe(risk_free_rate=0.001)
         weights = ef.clean_weights()
         res = pd.DataFrame()
         res['ticket'] = returns['Название акции']
