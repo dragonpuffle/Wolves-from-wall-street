@@ -612,3 +612,4 @@ if __name__ == '__main__':
     ef_no_short_file_sharp = 'data2/ef_no_short_sharp.xlsx'
     efficient_frontier_short_sharp(cov_file50, mean_var50, ef_short_file_sharp)
     efficient_frontier_no_short_sharp(cov_file50, mean_var50, ef_no_short_file_sharp)
+    #ку
